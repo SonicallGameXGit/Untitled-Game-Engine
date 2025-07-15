@@ -1,0 +1,125 @@
+#include "shader.hpp"
+
+#include <fstream>
+#include <glm/gtc/type_ptr.hpp>
+#include "../util/debug.hpp"
+
+GLuint createShader(const char *source, ShaderType type) {
+    GLuint shaderId = glCreateShader(static_cast<GLenum>(type));
+    glShaderSource(shaderId, 1, &source, nullptr);
+    glCompileShader(shaderId);
+
+    GLint success = 0;
+    glGetShaderiv(shaderId, GL_COMPILE_STATUS, &success);
+    if (success != GL_TRUE) {
+        GLint length = 0;
+        glGetShaderiv(shaderId, GL_INFO_LOG_LENGTH, &length);
+
+        std::string log(length, ' ');
+        glGetShaderInfoLog(shaderId, length, nullptr, &log[0]);
+
+        throwFatal("glCompileShader", "Failed to compile shader. Error:\n" + log + "\nSource:\n" + source + '\n');
+        return 0;
+    }
+
+    return shaderId;
+}
+
+Shader::Shader(const std::string &source, bool isPath, ShaderType type) {
+    if (isPath) {
+        std::ifstream file = std::ifstream(source);
+        if (!file.is_open()) {
+            throwFatal("std::ifstream", "Failed to open file: " + source);
+            return;
+        }
+
+        std::string sourceCode = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+        this->id = createShader(sourceCode.c_str(), type);
+    } else {
+        this->id = createShader(source.c_str(), type);
+    }
+}
+Shader::~Shader() {
+    if (this->id != 0) {
+        glDeleteShader(this->id);
+    }
+}
+GLuint Shader::getId() const {
+    return this->id;
+}
+
+ShaderProgram::ShaderProgram() {
+    this->id = glCreateProgram();
+}
+ShaderProgram::~ShaderProgram() {
+    if (this->id != 0) {
+        glDeleteProgram(this->id);
+    }
+}
+void ShaderProgram::attach(const Shader &shader) {
+    this->shaders.push_back(shader.getId());
+}
+void ShaderProgram::compile() {
+    for (GLuint shader : this->shaders) {
+        glAttachShader(this->id, shader);
+    }
+    glLinkProgram(this->id);
+
+    GLint success = 0;
+    glGetProgramiv(this->id, GL_LINK_STATUS, &success);
+
+    if (success != GL_TRUE) {
+        GLint length = 0;
+        glGetProgramiv(this->id, GL_INFO_LOG_LENGTH, &length);
+
+        std::string log(length, ' ');
+        glGetProgramInfoLog(this->id, length, nullptr, &log[0]);
+
+        throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
+        return;
+    }
+
+    std::vector<GLuint>().swap(this->shaders);
+}
+void ShaderProgram::bind() const {
+    glUseProgram(this->id);
+}
+
+void ShaderProgram::setBool(const char *name, bool value) const {
+    glUniform1i(glGetUniformLocation(this->id, name), value);
+}
+void ShaderProgram::setInt(const char *name, int value) const {
+    glUniform1i(glGetUniformLocation(this->id, name), value);
+}
+void ShaderProgram::setFloat(const char *name, float value) const {
+    glUniform1f(glGetUniformLocation(this->id, name), value);
+}
+void ShaderProgram::setVec2(const char *name, float x, float y) const {
+    glUniform2f(glGetUniformLocation(this->id, name), x, y);
+}
+void ShaderProgram::setVec2(const char *name, const glm::vec2 &vector) const {
+    glUniform2f(glGetUniformLocation(this->id, name), vector.x, vector.y);
+}
+void ShaderProgram::setVec3(const char *name, float x, float y, float z) const {
+    glUniform3f(glGetUniformLocation(this->id, name), x, y, z);
+}
+void ShaderProgram::setVec3(const char *name, const glm::vec3 &vector) const {
+    glUniform3f(glGetUniformLocation(this->id, name), vector.x, vector.y, vector.z);
+}
+void ShaderProgram::setVec4(const char *name, float x, float y, float z, float w) const {
+    glUniform4f(glGetUniformLocation(this->id, name), x, y, z, w);
+}
+void ShaderProgram::setVec4(const char *name, const glm::vec4 &vector) const {
+    glUniform4f(glGetUniformLocation(this->id, name), vector.x, vector.y, vector.z, vector.w);
+}
+
+void ShaderProgram::setMat2(const char *name, const glm::mat2 &matrix) const {
+    glUniformMatrix2fv(glGetUniformLocation(this->id, name), 1, false, glm::value_ptr(matrix));
+}
+void ShaderProgram::setMat3(const char *name, const glm::mat3 &matrix) const {
+    glUniformMatrix3fv(glGetUniformLocation(this->id, name), 1, false, glm::value_ptr(matrix));
+}
+void ShaderProgram::setMat4(const char *name, const glm::mat4 &matrix) const {
+    glUniformMatrix4fv(glGetUniformLocation(this->id, name), 1, false, glm::value_ptr(matrix));
+}
