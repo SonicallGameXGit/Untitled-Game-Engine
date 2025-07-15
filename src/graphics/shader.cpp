@@ -25,25 +25,28 @@ GLuint createShader(const char *source, ShaderType type) {
     return shaderId;
 }
 
-Shader::Shader(const std::string &source, bool isPath, ShaderType type) {
-    if (isPath) {
-        std::ifstream file = std::ifstream(source);
-        if (!file.is_open()) {
-            throwFatal("std::ifstream", "Failed to open file: " + source);
-            return;
-        }
-
-        std::string sourceCode = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
-        this->id = createShader(sourceCode.c_str(), type);
-    } else {
-        this->id = createShader(source.c_str(), type);
-    }
+Shader::Shader(GLuint id) {
+    this->id = id;
 }
 Shader::~Shader() {
     if (this->id != 0) {
         glDeleteShader(this->id);
     }
+}
+Shader Shader::fromFile(const std::string &path, ShaderType type) {
+    std::ifstream file = std::ifstream(path);
+    if (!file.is_open()) {
+        throwFatal("std::ifstream", "Failed to open file: " + path);
+        return Shader(0);
+    }
+
+    std::string source = std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    return Shader(createShader(source.c_str(), type));
+}
+Shader Shader::fromSourceCode(const char *source, ShaderType type) {
+    return Shader(createShader(source, type));
 }
 GLuint Shader::getId() const {
     return this->id;

@@ -13,9 +13,12 @@ enum class ShaderType : GLenum {
 class Shader {
 private:
     GLuint id = 0;
+    Shader(GLuint id);
 public:
-    Shader(const std::string &source, bool isPath, ShaderType type);
     ~Shader();
+
+    static Shader fromFile(const std::string &path, ShaderType type);
+    static Shader fromSourceCode(const char *source, ShaderType type);
 
     GLuint getId() const;
 };
