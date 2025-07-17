@@ -85,12 +85,12 @@ else()
     set(SDL_image_LIBRARIES ${SDL_image_LIBRARY})
 endif()
 
-
 add_executable(${PROJECT_NAME}
     src/test.cpp
     src/graphics/window.cpp
     src/graphics/shader.cpp
     src/graphics/mesh.cpp
+    src/graphics/texture.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

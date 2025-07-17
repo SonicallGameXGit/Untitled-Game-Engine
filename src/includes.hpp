@@ -6,3 +6,4 @@
 #include "graphics/window.hpp"
 #include "graphics/shader.hpp"
 #include "graphics/mesh.hpp"
+#include "graphics/texture.hpp"
