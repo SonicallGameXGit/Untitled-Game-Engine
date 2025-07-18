@@ -4,8 +4,8 @@ project(GLEngine)
 find_package(OpenGL REQUIRED)
 find_package(GLEW QUIET 2.2.0)
 find_package(GLM QUIET 1.0.1)
-find_package(SDL QUIET 3.2.18)
-find_package(SDL_image QUIET 3.2.4)
+find_package(SDL3 QUIET 3.2.18)
+find_package(SDL3_image QUIET 3.2.4)
 
 if(NOT GLEW_FOUND)
     include(FetchContent)
@@ -104,7 +104,7 @@ target_link_libraries(${PROJECT_NAME}
     OpenGL::GL
     SDL3::SDL3
     SDL3_image::SDL3_image
-    GLEW::GLEW
+    GLEW::glew
     glm::glm
 )
 
