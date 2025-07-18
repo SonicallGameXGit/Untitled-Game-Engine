@@ -1,13 +1,13 @@
 #include "window.hpp"
 #include "../util/debug.hpp"
 
-Window::Window(const char *title, int width, int height, bool resizable) {
+Window::Window(const char *title, int width, int height, bool resizable) : width(width), height(height) {
     if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO)) {
         throwFatal("SDL_Init", "Failed to initialize SDL.");
         return;
     }
 
-    this->handle = SDL_CreateWindow(title, width, height, SDL_WINDOW_OPENGL | (resizable ? SDL_WINDOW_RESIZABLE : 0));
+    this->handle = SDL_CreateWindow(title, this->width, this->height, SDL_WINDOW_OPENGL | (resizable ? SDL_WINDOW_RESIZABLE : 0));
     if (this->handle == nullptr) {
         throwFatal("SDL_CreateWindow", "Failed to create window.");
         return;
@@ -26,13 +26,8 @@ Window::Window(const char *title, int width, int height, bool resizable) {
     this->running = true;
 }
 Window::~Window() {
-    if (this->context != nullptr) {
-        SDL_GL_DestroyContext(this->context);
-    }
-    if (this->handle != nullptr) {
-        SDL_DestroyWindow(this->handle);
-    }
-
+    SDL_GL_DestroyContext(this->context);
+    SDL_DestroyWindow(this->handle);
     SDL_Quit();
 }
 
@@ -48,13 +43,24 @@ void Window::pollEvents() {
                 break;
             }
             case SDL_EVENT_WINDOW_RESIZED: {
-                glViewport(0, 0, static_cast<GLsizei>(event.window.data1), static_cast<GLsizei>(event.window.data2));
+                this->width = event.window.data1;
+                this->height = event.window.data2;
+                glViewport(0, 0, this->width, this->height);
+
                 break;
             }
             default: break;
         }
     }
 }
+
+int Window::getWidth() const {
+    return this->width;
+}
+int Window::getHeight() const {
+    return this->height;
+}
+
 bool Window::isRunning() const {
     return this->running;
 }

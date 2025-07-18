@@ -7,6 +7,7 @@ private:
     SDL_Window *handle = nullptr;
     SDL_GLContext context = {};
 
+    int width = 0, height = 0;
     bool running = false;
 public:
     Window(const char *title, int width, int height, bool resizable);
@@ -14,6 +15,9 @@ public:
 
     void swapBuffers() const;
     void pollEvents();
+
+    int getWidth() const;
+    int getHeight() const;
     
     bool isRunning() const;
 };

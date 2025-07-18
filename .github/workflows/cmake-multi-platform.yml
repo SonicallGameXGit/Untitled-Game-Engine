@@ -37,12 +37,38 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install OpenGL dependencies (Ubuntu)
+    - name: Install dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgl1-mesa-dev libegl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libglew-dev
-      # These packages provide OpenGL, EGL, and X11-related dependencies for Ubuntu.
+        sudo apt-get install -y \
+          libgl1-mesa-dev \
+          libegl1-mesa-dev \
+          libx11-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxcursor-dev \
+          libxi-dev \
+          libglew-dev \
+          libsdl2-dev \
+          libsdl2-image-dev \
+          nasm
+
+    - name: Install vcpkg and dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        git clone https://github.com/microsoft/vcpkg.git
+        .\vcpkg\bootstrap-vcpkg.bat
+        .\vcpkg\vcpkg install glew sdl2 sdl2-image
+        echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $GITHUB_ENV
+      shell: cmd
+
+    - name: Install NASM (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        choco install nasm
+        echo "C:\Program Files\NASM" >> $GITHUB_PATH
+      shell: cmd
 
     - name: Set reusable strings
       id: strings
@@ -51,16 +77,28 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     - name: Configure CMake
-      run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
-        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-        -S ${{ github.workspace }}
+      run: |
+        cmake -B ${{ steps.strings.outputs.build-output-dir }} \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake \
+          -S ${{ github.workspace }} \
+          -DGLM_ENABLE_SIMD_AVX=ON
+      env:
+        VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
     - name: Build
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
-    - name: Test
+    - name: Test (Ubuntu with Xvfb)
+      if: matrix.os == 'ubuntu-latest'
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: |
+        sudo apt-get install -y xvfb
+        xvfb-run ctest --build-config ${{ matrix.build_type }}
+
+    - name: Test (Windows)
+      if: matrix.os == 'windows-latest'
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: ctest --build-config ${{ matrix.build_type }}

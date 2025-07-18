@@ -1,8 +1,10 @@
 #pragma once
 #include <GL/glew.h>
-#include <vector>
+#include <array>
 #include <string>
 #include <glm/glm.hpp>
+
+#include "../util/debug.hpp"
 
 enum class ShaderType : GLenum {
     VERTEX = GL_VERTEX_SHADER,
@@ -25,13 +27,32 @@ public:
 class ShaderProgram {
 private:
     GLuint id = 0;
-    std::vector<GLuint> shaders = {};
 public:
-    ShaderProgram();
+    template<std::size_t N>
+    ShaderProgram(const std::array<Shader, N> &shaders) {
+        this->id = glCreateProgram();
+
+        for (const Shader &shader : shaders) {
+            glAttachShader(this->id, shader.getId());
+        }
+        glLinkProgram(this->id);
+
+        GLint success = 0;
+        glGetProgramiv(this->id, GL_LINK_STATUS, &success);
+
+        if (success != GL_TRUE) {
+            GLint length = 0;
+            glGetProgramiv(this->id, GL_INFO_LOG_LENGTH, &length);
+
+            std::string log(length, ' ');
+            glGetProgramInfoLog(this->id, length, nullptr, &log[0]);
+
+            throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
+            return;
+        }
+    }
     ~ShaderProgram();
 
-    void attach(const Shader &shader);
-    void compile();
     void bind() const;
     
     void setBool(const char *name, bool value) const;

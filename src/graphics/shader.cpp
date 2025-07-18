@@ -2,7 +2,8 @@
 
 #include <fstream>
 #include <glm/gtc/type_ptr.hpp>
-#include "../util/debug.hpp"
+
+static GLuint boundProgram = 0;
 
 GLuint createShader(const char *source, ShaderType type) {
     GLuint shaderId = glCreateShader(static_cast<GLenum>(type));
@@ -25,13 +26,9 @@ GLuint createShader(const char *source, ShaderType type) {
     return shaderId;
 }
 
-Shader::Shader(GLuint id) {
-    this->id = id;
-}
+Shader::Shader(GLuint id) : id(id) {}
 Shader::~Shader() {
-    if (this->id != 0) {
-        glDeleteShader(this->id);
-    }
+    glDeleteShader(this->id);
 }
 Shader Shader::fromFile(const std::string &path, ShaderType type) {
     std::ifstream file = std::ifstream(path);
@@ -52,41 +49,16 @@ GLuint Shader::getId() const {
     return this->id;
 }
 
-ShaderProgram::ShaderProgram() {
-    this->id = glCreateProgram();
-}
 ShaderProgram::~ShaderProgram() {
-    if (this->id != 0) {
-        glDeleteProgram(this->id);
-    }
+    glDeleteProgram(this->id);
 }
-void ShaderProgram::attach(const Shader &shader) {
-    this->shaders.push_back(shader.getId());
-}
-void ShaderProgram::compile() {
-    for (GLuint shader : this->shaders) {
-        glAttachShader(this->id, shader);
-    }
-    glLinkProgram(this->id);
-
-    GLint success = 0;
-    glGetProgramiv(this->id, GL_LINK_STATUS, &success);
-
-    if (success != GL_TRUE) {
-        GLint length = 0;
-        glGetProgramiv(this->id, GL_INFO_LOG_LENGTH, &length);
-
-        std::string log(length, ' ');
-        glGetProgramInfoLog(this->id, length, nullptr, &log[0]);
-
-        throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
+void ShaderProgram::bind() const {
+    if (boundProgram == this->id) {
         return;
     }
 
-    std::vector<GLuint>().swap(this->shaders);
-}
-void ShaderProgram::bind() const {
     glUseProgram(this->id);
+    boundProgram = this->id;
 }
 
 void ShaderProgram::setBool(const char *name, bool value) const {

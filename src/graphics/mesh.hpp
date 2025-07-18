@@ -21,22 +21,12 @@ enum class MeshTopology : GLenum {
 
 class Mesh {
 private:
-    GLuint vao = 0, vbo = 0;
+    GLuint vao = 0, ebo = 0, vbo = 0;
     GLenum topology = static_cast<GLenum>(MeshTopology::TRIANGLE_LIST);
     GLsizei numVertices = 0;
-public:
-    template<typename VT>
-    Mesh(const std::vector<VT> &vertices, const std::vector<MeshAttribute> &attributes, MeshTopology topology) {
-        this->topology = static_cast<GLenum>(topology);
 
-        glGenVertexArrays(1, &this->vao);
-        glGenBuffers(1, &this->vbo);
-
-        glBindVertexArray(this->vao);
-        glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
-        
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VT), vertices.data(), GL_STATIC_DRAW);
-        
+    template<size_t N>
+    size_t buildAttributesAndGetOffset(const std::array<MeshAttribute, N> &attributes) {
         GLsizei stride = 0;
         for (size_t i = 0; i < attributes.size(); i++) {
             stride += static_cast<GLint>(attributes[i]) * sizeof(float); // TODO: After adding new attribute types, add switch to consider size in bytes of each attribute type.
@@ -51,48 +41,41 @@ public:
             offset += numAttributeFloats * sizeof(float); // TODO: After adding new attribute types, add switch to consider size in bytes of each attribute type.
         }
 
-        this->numVertices = static_cast<GLsizei>(vertices.size() / (offset / sizeof(VT)));
+        return offset;
     }
-    ~Mesh();
-    void render() const;
-};
-
-class IndexedMesh {
-private:
-    GLuint vao = 0, ebo = 0, vbo = 0;
-    GLenum topology = static_cast<GLenum>(MeshTopology::TRIANGLE_LIST);
-    GLsizei numElements = 0;
 public:
-    template<typename VT>
-    IndexedMesh(const std::vector<GLuint> &elements, const std::vector<VT> &vertices, const std::vector<MeshAttribute> &attributes, MeshTopology topology) {
-        this->topology = static_cast<GLenum>(topology);
-        this->numElements = static_cast<GLsizei>(elements.size());
-
+    template<typename VT, size_t NAttributes>
+    Mesh(const std::vector<GLuint> &elements, const std::vector<VT> &vertices, const std::array<MeshAttribute, NAttributes> &attributes, MeshTopology topology) :
+        topology(static_cast<GLenum>(topology)),
+        numVertices(static_cast<GLsizei>(elements.size()))
+    {
         glGenVertexArrays(1, &this->vao);
-        glGenBuffers(1, &this->ebo);
         glGenBuffers(1, &this->vbo);
+        glGenBuffers(1, &this->ebo);
 
         glBindVertexArray(this->vao);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->ebo);
         glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
-
+        
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, elements.size() * sizeof(GLuint), elements.data(), GL_STATIC_DRAW);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VT), vertices.data(), GL_STATIC_DRAW);
 
-        GLsizei stride = 0;
-        for (size_t i = 0; i < attributes.size(); i++) {
-            stride += static_cast<GLint>(attributes[i]) * sizeof(float); // TODO: After adding new attribute types, add switch to consider size in bytes of each attribute type.
-        }
-        
-        size_t offset = 0;
-        for (size_t i = 0; i < attributes.size(); i++) {
-            size_t numAttributeFloats = static_cast<size_t>(attributes[i]);
-            glEnableVertexAttribArray(i);
-            glVertexAttribPointer(i, static_cast<GLint>(numAttributeFloats), GL_FLOAT, GL_FALSE, stride, (void*)offset);
-            
-            offset += numAttributeFloats * sizeof(float); // TODO: After adding new attribute types, add switch to consider size in bytes of each attribute type.
-        }
+        this->buildAttributesAndGetOffset(attributes);
     }
-    ~IndexedMesh();
+
+    template<typename VT, size_t NAttributes>
+    Mesh(const std::vector<VT> &vertices, const std::array<MeshAttribute, NAttributes> &attributes, MeshTopology topology) : topology(static_cast<GLenum>(topology)) {
+        glGenVertexArrays(1, &this->vao);
+        glGenBuffers(1, &this->vbo);
+
+        glBindVertexArray(this->vao);
+        glBindBuffer(GL_ARRAY_BUFFER, this->vbo);
+        
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(VT), vertices.data(), GL_STATIC_DRAW);
+        
+        size_t offset = this->buildAttributesAndGetOffset(attributes);
+        this->numVertices = static_cast<GLsizei>(vertices.size() / (offset / sizeof(VT)));
+    }
+    ~Mesh();
     void render() const;
 };

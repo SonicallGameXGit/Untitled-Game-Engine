@@ -24,8 +24,18 @@ public:
     static Texture fromFile(const char *path, TextureFilter filter, TextureWrap wrap);
     static Texture fromPixelsRGBA(void *data, GLsizei width, GLsizei height, TextureFilter filter, TextureWrap wrap);
 
-    void bind(uint32_t slot) {
-        glActiveTexture(GL_TEXTURE0 + slot);
-        glBindTexture(GL_TEXTURE_2D, this->id);
-    }
+    void bind(uint32_t slot) const;
+
+    GLuint getId() const;
+};
+class TextureView {
+private:
+    GLuint id = 0;
+public:
+    TextureView();
+    TextureView(const Texture &source);
+    ~TextureView();
+
+    void bind(uint32_t slot) const;
+    GLuint getId() const;
 };

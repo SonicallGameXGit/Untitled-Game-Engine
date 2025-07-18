@@ -6,6 +6,7 @@ find_package(GLEW QUIET 2.2.0)
 find_package(GLM QUIET 1.0.1)
 find_package(SDL3 QUIET 3.2.18)
 find_package(SDL3_image QUIET 3.2.4)
+find_package(EnTT QUIET 3.15.0)
 
 if(NOT GLEW_FOUND)
     include(FetchContent)
@@ -85,8 +86,28 @@ else()
     set(SDL_image_LIBRARIES ${SDL_image_LIBRARY})
 endif()
 
+if(NOT EnTT_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        EnTT
+        GIT_REPOSITORY https://github.com/skypjack/entt.git
+        GIT_TAG v3.15.0
+    )
+    FetchContent_MakeAvailable(EnTT)
+    FetchContent_GetProperties(EnTT)
+    
+    set(EnTT_INCLUDE_DIRS ${EnTT_SOURCE_DIR}/include)
+    set(EnTT_LIBRARIES ${EnTT_LIBRARY})
+    set(EnTT_FOUND TRUE)
+else()
+    message(STATUS "Using existing EnTT installation")
+    set(EnTT_INCLUDE_DIRS ${EnTT_INCLUDE_DIR})
+    set(EnTT_LIBRARIES ${EnTT_LIBRARY})
+endif()
+
 add_executable(${PROJECT_NAME}
     src/test.cpp
+    src/util/debug.cpp
     src/graphics/window.cpp
     src/graphics/shader.cpp
     src/graphics/mesh.cpp
@@ -98,6 +119,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${SDL_INCLUDE_DIRS}
     ${SDL_image_INCLUDE_DIRS}
     ${GLM_INCLUDE_DIRS}
+    ${EnTT_INCLUDE_DIRS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -106,6 +128,13 @@ target_link_libraries(${PROJECT_NAME}
     SDL3_image::SDL3_image
     GLEW::glew
     glm::glm
+    EnTT::EnTT
 )
+
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+else()
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)

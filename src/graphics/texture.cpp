@@ -1,19 +1,17 @@
 #include "texture.hpp"
 
-Texture::Texture(GLuint id) {
-    this->id = id;
-}
+static GLuint boundTexture = 0;
+
+Texture::Texture(GLuint id) : id(id) {}
 Texture::~Texture() {
-    if (this->id != 0) {
-        glDeleteTextures(1, &this->id);
-    }
+    glDeleteTextures(1, &this->id);
 }
 
 Texture Texture::fromFile(const char *path, TextureFilter filter, TextureWrap wrap) {
     SDL_Surface *surface = IMG_Load(path);
     if (surface == nullptr) {
         throwFatal("IMG_Load", "Failed to load texture from file. Surface is nullptr.");
-        return NULL;
+        return Texture(0);
     }
     if (surface->format != SDL_PIXELFORMAT_RGBA32) {
         SDL_Surface *previousSurface = surface;
@@ -24,7 +22,7 @@ Texture Texture::fromFile(const char *path, TextureFilter filter, TextureWrap wr
     if (surface == nullptr || !SDL_FlipSurface(surface, SDL_FLIP_VERTICAL)) {
         throwFatal("SDL_ConvertSurface", "Failed to convert texture format and flip it.");
         SDL_DestroySurface(surface);
-        return NULL;
+        return Texture(0);
     }
 
     GLuint texture = 0;
@@ -52,4 +50,40 @@ Texture Texture::fromPixelsRGBA(void *data, GLsizei width, GLsizei height, Textu
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(wrap));
 
     return Texture(texture);
+}
+
+void Texture::bind(uint32_t slot) const {
+    if (boundTexture == this->id) {
+        return;
+    }
+
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_2D, this->id);
+
+    boundTexture = this->id;
+}
+
+GLuint Texture::getId() const {
+    return this->id;
+}
+
+TextureView::TextureView() {}
+TextureView::TextureView(const Texture &texture) {
+    this->id = texture.getId();
+}
+TextureView::~TextureView() {}
+
+void TextureView::bind(uint32_t slot) const {
+    if (boundTexture == this->id) {
+        return;
+    }
+    
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_2D, this->id);
+
+    boundTexture = this->id;
+}
+
+GLuint TextureView::getId() const {
+    return this->id;
 }
