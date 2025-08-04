@@ -1,7 +1,7 @@
 #include "window.hpp"
 #include "../util/debug.hpp"
 
-Window::Window(const char *title, int width, int height, bool resizable) : width(width), height(height) {
+Window::Window(const char *title, int width, int height, bool resizable, bool vsync) : width(width), height(height) {
     if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO)) {
         throwFatal("SDL_Init", "Failed to initialize SDL.");
         return;
@@ -23,6 +23,7 @@ Window::Window(const char *title, int width, int height, bool resizable) : width
         return;
     }
 
+    SDL_GL_SetSwapInterval(vsync);
     this->running = true;
 }
 Window::~Window() {

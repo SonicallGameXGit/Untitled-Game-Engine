@@ -10,7 +10,7 @@ private:
     int width = 0, height = 0;
     bool running = false;
 public:
-    Window(const char *title, int width, int height, bool resizable);
+    Window(const char *title, int width, int height, bool resizable, bool vsync);
     ~Window();
 
     void swapBuffers() const;
