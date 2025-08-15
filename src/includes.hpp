@@ -1,13 +1,24 @@
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
-#include <GL/glew.h>
+#pragma once
 
 #include "framework/util/debug.hpp"
 #include "framework/graphics/window.hpp"
 #include "framework/graphics/shader.hpp"
-#include "framework/graphics/mesh.hpp"
+#include "framework/graphics/buffers.hpp"
 #include "framework/graphics/texture.hpp"
-#include "gui/text.hpp"
+
+#include "engine/world/camera.hpp"
+#include "engine/world/mesh.hpp"
+#include "engine/world/renderer.hpp"
+
+#include "engine/gui/renderer.hpp"
+#include "engine/gui/text.hpp"
+
+#include "engine/ecs/ecs.hpp"
+#include "engine/ecs/components/transform.hpp"
+#include "engine/ecs/components/mesh.hpp"
+#include "engine/ecs/components/gui.hpp"
+
+#include "engine/util/defines.hpp"
 
 enum class Bits {
     DOBRI_BIT = 0b00000001,

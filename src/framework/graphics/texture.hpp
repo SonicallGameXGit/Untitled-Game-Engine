@@ -1,19 +1,19 @@
 #pragma once
 #include <SDL3_image/SDL_image.h>
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include "../util/debug.hpp"
 
-enum class TextureFilter : GLint {
-    NEAREST = GL_NEAREST,
-    LINEAR  = GL_LINEAR,
+enum class TextureFilter : uint32_t {
+    Nearest = GL_NEAREST,
+    Linear  = GL_LINEAR,
 };
-enum class TextureWrap : GLint {
-    REPEAT          = GL_REPEAT,
-    MIRRORED_REPEAT = GL_MIRRORED_REPEAT,
-    CLAMP_TO_EDGE   = GL_CLAMP_TO_EDGE,
-    CLAMP_TO_BORDER = GL_CLAMP_TO_BORDER,
+enum class TextureWrap : uint32_t {
+    Repeat          = GL_REPEAT,
+    MirroredRepeat  = GL_MIRRORED_REPEAT,
+    ClampToEdge     = GL_CLAMP_TO_EDGE,
+    ClampToBorder   = GL_CLAMP_TO_BORDER,
 };
-enum class TextureInternalFormat : GLint {
+enum class TextureInternalFormat : uint32_t {
     R8      = GL_R8,
     RG8     = GL_RG8,
     RGB8    = GL_RGB8,
@@ -23,51 +23,47 @@ enum class TextureInternalFormat : GLint {
     RGB32F  = GL_RGB32F,
     RGBA32F = GL_RGBA32F,
 };
-enum class TextureFormat : GLenum {
+enum class TextureFormat : uint32_t {
     R    = GL_RED,
     RG   = GL_RG,
     RGB  = GL_RGB,
     RGBA = GL_RGBA,
 };
-enum class TextureType : GLenum {
-    UNSIGNED_BYTE = GL_UNSIGNED_BYTE,
-    FLOAT         = GL_FLOAT
+enum class TextureType : uint32_t {
+    UnsignedByte = GL_UNSIGNED_BYTE,
+    Float       = GL_FLOAT
 };
 
 class Texture {
 private:
-    GLuint id = 0;
-    uint32_t width = 0, height = 0;
+    uint32_t id = 0, width = 0, height = 0;
 
-    Texture(GLuint id, uint32_t width, uint32_t height);
-public:
-    Texture();
-    ~Texture();
-
+    Texture(uint32_t id, uint32_t width, uint32_t height);
     Texture(const Texture&) = delete;
     Texture &operator=(const Texture&) = delete;
-
+public:
     Texture(Texture &&other) noexcept;
     Texture &operator=(Texture &&other) noexcept;
-    
-    static Texture fromFile(const char *path, TextureInternalFormat internalFormat, TextureFormat format, TextureType type, TextureFilter filter, TextureWrap wrap);
-    static Texture fromPixels(const void *data, GLsizei width, GLsizei height, TextureInternalFormat internalFormat, TextureFormat format, TextureType type, TextureFilter filter, TextureWrap wrap);
+
+    struct Properties {
+        TextureInternalFormat internalFormat = TextureInternalFormat::RGBA8;
+        TextureFormat format = TextureFormat::RGBA;
+        TextureType type = TextureType::UnsignedByte;
+        TextureFilter filter = TextureFilter::Linear;
+        TextureWrap wrap = TextureWrap::Repeat;
+    };
+
+    Texture();
+    ~Texture();
 
     void bind(uint32_t slot) const;
 
     uint32_t getWidth() const;
     uint32_t getHeight() const;
 
-    GLuint getId() const;
-};
-class TextureView {
-private:
-    GLuint id = 0;
-public:
-    TextureView();
-    TextureView(const Texture &source);
-    ~TextureView();
-
-    void bind(uint32_t slot) const;
-    GLuint getId() const;
+    uint32_t getId() const;
+    bool isValid() const;
+    
+    static Texture fromFile(const char *path, const Texture::Properties &properties);
+    static Texture fromPixels(const void *data, uint32_t width, uint32_t height, const Texture::Properties &properties);
 };

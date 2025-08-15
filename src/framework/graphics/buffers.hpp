@@ -1,23 +1,7 @@
 #pragma once
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include <vector>
 #include <cstdio>
-
-// TODO: Add more advanced attribute types like Int, IVec2, IVec3, IVec4; Double, DVec2, DVec3, DVec4 and Long, LVec2, LVec3, LVec4 (if exists)
-// enum class MeshAttribute : size_t {
-//     Float = 1,
-//     Vec2 = 2,
-//     Vec3 = 3,
-//     Vec4 = 4
-// };
-// enum class MeshTopology : GLenum {
-//     TRIANGLE_LIST = GL_TRIANGLES,
-//     TRIANGLE_FAN = GL_TRIANGLE_FAN,
-//     TRIANGLE_STRIP = GL_TRIANGLE_STRIP,
-//     LINE_LIST = GL_LINES,
-//     LINE_STRIP = GL_LINE_STRIP,
-//     LINE_LOOP = GL_LINE_LOOP
-// };
 
 enum class VertexBufferUsage : uint8_t {
     Static, Dynamic
@@ -84,13 +68,10 @@ struct VertexAttribute {
     VertexAttributeType type = VertexAttributeType::Float;
     VertexAttributeSize size = VertexAttributeSize::Vec3;
     VertexAttributeDivisor divisor = VertexAttributeDivisor::PerVertex;
-
-    VertexAttribute(VertexAttributeType type, VertexAttributeSize size, VertexAttributeDivisor divisor);
-    ~VertexAttribute();
 };
 enum class Topology {
-    TRIANGLE_LIST, TRIANGLE_FAN, TRIANGLE_STRIP,
-    LINE_LIST, LINE_STRIP, LINE_LOOP
+    TriangleList, TriangleFan, TriangleStrip,
+    LineList, LineStrip, LineLoop
 };
 
 class VertexArray {
@@ -111,4 +92,10 @@ public:
 
     void bindElementBuffer(const ElementBuffer &buffer);
     void bindVertexBuffer(const VertexBuffer &buffer, const std::vector<VertexAttribute> &attributes);
+
+    void updateVertexCount(const VertexBuffer &buffer);
+    void updateElementCount(const ElementBuffer &buffer);
+
+    uint32_t getId() const;
+    uint32_t getVertexCount() const;
 };

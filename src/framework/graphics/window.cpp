@@ -1,13 +1,14 @@
 #include "window.hpp"
+#include <glad/glad.h>
 #include "../util/debug.hpp"
 
-Window::Window(const char *title, int width, int height, bool resizable, bool vsync) : width(width), height(height) {
+Window::Window(const Window::Config &config) : width(config.width), height(config.height) {
     if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO)) {
         throwFatal("SDL_Init", "Failed to initialize SDL.");
         return;
     }
 
-    this->handle = SDL_CreateWindow(title, this->width, this->height, SDL_WINDOW_OPENGL | (resizable ? SDL_WINDOW_RESIZABLE : 0));
+    this->handle = SDL_CreateWindow(config.title, this->width, this->height, SDL_WINDOW_OPENGL | (config.resizable ? SDL_WINDOW_RESIZABLE : 0));
     if (this->handle == nullptr) {
         throwFatal("SDL_CreateWindow", "Failed to create window.");
         return;
@@ -18,12 +19,13 @@ Window::Window(const char *title, int width, int height, bool resizable, bool vs
         throwFatal("SDL_GL_CreateContext", "Failed to create GL context.");
         return;
     }
-    if (glewInit() != GLEW_OK) {
-        throwFatal("glewInit", "Failed to init GLEW.");
+
+    if (!gladLoadGL()) {
+        throwFatal("gladLoadGL", "Failed to load OpenGL functions.");
         return;
     }
 
-    SDL_GL_SetSwapInterval(vsync);
+    SDL_GL_SetSwapInterval(config.vsync);
     this->running = true;
 }
 Window::~Window() {
@@ -60,6 +62,13 @@ int Window::getWidth() const {
 }
 int Window::getHeight() const {
     return this->height;
+}
+
+float Window::getHorizontalAspect() const {
+    return static_cast<float>(this->width) / static_cast<float>(this->height);
+}
+float Window::getVerticalAspect() const {
+    return static_cast<float>(this->height) / static_cast<float>(this->width);
 }
 
 bool Window::isRunning() const {

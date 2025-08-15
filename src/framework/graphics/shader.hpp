@@ -1,56 +1,34 @@
 #pragma once
-#include <GL/glew.h>
-#include <array>
+#include <glad/glad.h>
+#include <vector>
 #include <string>
 #include <glm/glm.hpp>
 
 #include "../util/debug.hpp"
 
-enum class ShaderType : GLenum {
-    VERTEX = GL_VERTEX_SHADER,
-    FRAGMENT = GL_FRAGMENT_SHADER,
-    COMPUTE_SHADER = GL_COMPUTE_SHADER,
-    GEOMETRY_SHADER = GL_GEOMETRY_SHADER,
+enum class ShaderType : uint32_t {
+    Vertex = GL_VERTEX_SHADER,
+    Fragment = GL_FRAGMENT_SHADER,
+    Compute = GL_COMPUTE_SHADER,
+    Geometry = GL_GEOMETRY_SHADER,
 };
 class Shader {
 private:
-    GLuint id = 0;
-    Shader(GLuint id);
+    uint32_t id = 0;
+    Shader(uint32_t id);
 public:
     ~Shader();
 
     static Shader fromFile(const std::string &path, ShaderType type);
     static Shader fromSourceCode(const char *source, ShaderType type);
 
-    GLuint getId() const;
+    uint32_t getId() const;
 };
 class ShaderProgram {
 private:
-    GLuint id = 0;
+    uint32_t id = 0;
 public:
-    template<std::size_t N>
-    ShaderProgram(const std::array<Shader, N> &shaders) {
-        this->id = glCreateProgram();
-
-        for (const Shader &shader : shaders) {
-            glAttachShader(this->id, shader.getId());
-        }
-        glLinkProgram(this->id);
-
-        GLint success = 0;
-        glGetProgramiv(this->id, GL_LINK_STATUS, &success);
-
-        if (success != GL_TRUE) {
-            GLint length = 0;
-            glGetProgramiv(this->id, GL_INFO_LOG_LENGTH, &length);
-
-            std::string log(length, ' ');
-            glGetProgramInfoLog(this->id, length, nullptr, &log[0]);
-
-            throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
-            return;
-        }
-    }
+    ShaderProgram(const std::vector<Shader> &shaders);
     ~ShaderProgram();
 
     void bind() const;

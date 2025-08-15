@@ -2,7 +2,7 @@
 
 #include <string>
 #include <SDL3_image/SDL_image.h>
-#include "../framework/util/debug.hpp"
+#include "../../framework/util/debug.hpp"
 
 FreeType::FreeType() {
     this->handle = msdfgen::initializeFreetype();
@@ -19,7 +19,7 @@ msdfgen::FreetypeHandle *FreeType::getHandle() const {
     return this->handle;
 }
 
-Font::Font(const FreeType &freeType, const std::string &filename, float fontHeight) : fontHeight(fontHeight) {
+Font::Font(const FreeType &freeType, const std::string &filename) {
     msdfgen::FontHandle *font = msdfgen::loadFont(freeType.getHandle(), filename.c_str());
     if (font == nullptr) {
         throwFatal("msdfgen::loadFont", std::string("Failed to load font: ") + filename);
@@ -34,8 +34,8 @@ Font::Font(const FreeType &freeType, const std::string &filename, float fontHeig
         if (cp >= 0xD800 && cp <= 0xDFFF) continue;
         charset.add(cp);
     }
-    
-    int glyphsLoaded = geometry.loadCharset(font, static_cast<double>(this->fontHeight), charset);
+
+    int glyphsLoaded = geometry.loadCharset(font, Font::FONT_HEIGHT, charset);
     if (glyphsLoaded <= 0) {
         msdfgen::destroyFont(font);
         throwFatal("msdf_atlas::FontGeometry::loadCharset", "Not enough glyphs loaded! " + std::to_string(glyphsLoaded) + " of " + std::to_string(charset.size()) + ". Font: " + filename);
@@ -51,7 +51,7 @@ Font::Font(const FreeType &freeType, const std::string &filename, float fontHeig
     packer.setDimensionsConstraint(msdf_atlas::DimensionsConstraint::SQUARE);
     packer.setPixelRange(static_cast<double>(Font::PIXEL_RANGE));
     packer.setMiterLimit(1.0);
-    packer.setScale(static_cast<double>(this->fontHeight));
+    packer.setScale(Font::FONT_HEIGHT);
     packer.setSpacing(2);
 
     const int packerSuccess = 0;
@@ -76,7 +76,13 @@ Font::Font(const FreeType &freeType, const std::string &filename, float fontHeig
     generator.generate(glyphs.data(), glyphs.size());
 
     msdfgen::BitmapConstRef<msdfgen::byte, 3> bitmap = generator.atlasStorage();
-    this->texture = Texture::fromPixels(bitmap.pixels, bitmap.width, bitmap.height, TextureInternalFormat::RGB8, TextureFormat::RGB, TextureType::UNSIGNED_BYTE, TextureFilter::LINEAR, TextureWrap::REPEAT);
+    this->texture = Texture::fromPixels(bitmap.pixels, bitmap.width, bitmap.height, {
+        .internalFormat = TextureInternalFormat::RGB8,
+        .format = TextureFormat::RGB,
+        .type = TextureType::UnsignedByte,
+        .filter = TextureFilter::Linear,
+        .wrap = TextureWrap::Repeat
+    });
 
     uint32_t bitmapWidth = this->texture.getWidth(), bitmapHeight = this->texture.getHeight();
 
@@ -91,10 +97,10 @@ Font::Font(const FreeType &freeType, const std::string &filename, float fontHeig
 
         this->glyphs[unicode] = Glyph {
             .boundsLBRT = glm::vec4(
-                static_cast<float>(boundsL) / this->fontHeight,
-                static_cast<float>(boundsB) / this->fontHeight,
-                static_cast<float>(boundsR) / this->fontHeight,
-                static_cast<float>(boundsT) / this->fontHeight
+                static_cast<float>(boundsL / Font::FONT_HEIGHT),
+                static_cast<float>(boundsB / Font::FONT_HEIGHT),
+                static_cast<float>(boundsR / Font::FONT_HEIGHT),
+                static_cast<float>(boundsT / Font::FONT_HEIGHT)
             ),
             .uvLBRT = glm::vec4(
                 static_cast<float>(uvL) / static_cast<float>(bitmapWidth),
@@ -102,13 +108,33 @@ Font::Font(const FreeType &freeType, const std::string &filename, float fontHeig
                 static_cast<float>(uvR) / static_cast<float>(bitmapWidth),
                 static_cast<float>(uvT) / static_cast<float>(bitmapHeight)
             ),
-            .advance = static_cast<float>(glyph.getAdvance()) / this->fontHeight,
+            .advance = static_cast<float>(glyph.getAdvance() / Font::FONT_HEIGHT),
         };
     }
 
     msdfgen::destroyFont(font);
 }
 Font::~Font() {}
+
+float Font::getTextWidth(const std::wstring &text) const {
+    float maxWidth = 0.0f, width = 0.0f;
+
+    for (wchar_t character : text) {
+        if (character == L'\n') {
+            maxWidth = std::max(maxWidth, width);
+            width = 0.0f;
+            continue;
+        }
+
+        const Glyph *glyph = this->getGlyph(character);
+        if (glyph == nullptr) continue;
+
+        width += glyph->advance;
+    }
+
+    maxWidth = std::max(maxWidth, width);
+    return maxWidth;
+}
 
 const Glyph *Font::getGlyph(wchar_t character) const {
     auto iterator = this->glyphs.find(character);
@@ -167,11 +193,22 @@ TextMesh::TextMesh() {
         0.0f, 1.0f
     });
     this->vertexArray.bindVertexBuffer(this->vertexBuffer, std::vector<VertexAttribute>{
-        VertexAttribute(VertexAttributeType::Float, VertexAttributeSize::Vec2, VertexAttributeDivisor::PerVertex),
+        {
+            .type = VertexAttributeType::Float,
+            .size = VertexAttributeSize::Vec2,
+        }
     });
     this->vertexArray.bindVertexBuffer(this->instanceBuffer, std::vector<VertexAttribute>{
-        VertexAttribute(VertexAttributeType::Float, VertexAttributeSize::Vec4, VertexAttributeDivisor::PerInstance),
-        VertexAttribute(VertexAttributeType::Float, VertexAttributeSize::Vec4, VertexAttributeDivisor::PerInstance),
+        {
+            .type = VertexAttributeType::Float,
+            .size = VertexAttributeSize::Vec4,
+            .divisor = VertexAttributeDivisor::PerInstance
+        },
+        {
+            .type = VertexAttributeType::Float,
+            .size = VertexAttributeSize::Vec4,
+            .divisor = VertexAttributeDivisor::PerInstance
+        },
     });
 }
 TextMesh::~TextMesh() {}
@@ -215,5 +252,5 @@ void TextMesh::setText(const std::wstring &text, const Font &font) {
     this->numInstances = static_cast<uint32_t>(instances.size());
 }
 void TextMesh::draw() const {
-    this->vertexArray.drawArraysInstanced(Topology::TRIANGLE_FAN, this->numInstances);
+    this->vertexArray.drawArraysInstanced(Topology::TriangleFan, this->numInstances);
 }

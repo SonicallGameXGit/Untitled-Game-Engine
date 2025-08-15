@@ -3,17 +3,17 @@
 #include <fstream>
 #include <glm/gtc/type_ptr.hpp>
 
-static GLuint boundProgram = 0;
+static uint32_t boundProgram = 0;
 
-GLuint createShader(const char *source, ShaderType type) {
-    GLuint shaderId = glCreateShader(static_cast<GLenum>(type));
+static uint32_t createShader(const char *source, ShaderType type) {
+    uint32_t shaderId = glCreateShader(static_cast<uint32_t>(type));
     glShaderSource(shaderId, 1, &source, nullptr);
     glCompileShader(shaderId);
 
-    GLint success = 0;
+    int32_t success = 0;
     glGetShaderiv(shaderId, GL_COMPILE_STATUS, &success);
     if (success != GL_TRUE) {
-        GLint length = 0;
+        int32_t length = 0;
         glGetShaderiv(shaderId, GL_INFO_LOG_LENGTH, &length);
 
         std::string log(length, ' ');
@@ -26,7 +26,7 @@ GLuint createShader(const char *source, ShaderType type) {
     return shaderId;
 }
 
-Shader::Shader(GLuint id) : id(id) {}
+Shader::Shader(uint32_t id) : id(id) {}
 Shader::~Shader() {
     glDeleteShader(this->id);
 }
@@ -45,10 +45,32 @@ Shader Shader::fromFile(const std::string &path, ShaderType type) {
 Shader Shader::fromSourceCode(const char *source, ShaderType type) {
     return Shader(createShader(source, type));
 }
-GLuint Shader::getId() const {
+uint32_t Shader::getId() const {
     return this->id;
 }
 
+ShaderProgram::ShaderProgram(const std::vector<Shader> &shaders) {
+    this->id = glCreateProgram();
+
+    for (const Shader &shader : shaders) {
+        glAttachShader(this->id, shader.getId());
+    }
+    glLinkProgram(this->id);
+
+    int32_t success = 0;
+    glGetProgramiv(this->id, GL_LINK_STATUS, &success);
+
+    if (success != GL_TRUE) {
+        int32_t length = 0;
+        glGetProgramiv(this->id, GL_INFO_LOG_LENGTH, &length);
+
+        std::string log(length, ' ');
+        glGetProgramInfoLog(this->id, length, nullptr, &log[0]);
+
+        throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
+        return;
+    }
+}
 ShaderProgram::~ShaderProgram() {
     glDeleteProgram(this->id);
 }

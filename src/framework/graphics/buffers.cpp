@@ -1,11 +1,11 @@
-#include "mesh.hpp"
+#include "buffers.hpp"
 #include <stdio.h>
 
 static uint32_t boundVertexBuffer = 0;
 static uint32_t boundElementBuffer = 0;
 static uint32_t boundVertexArray = 0;
 
-constexpr GLenum getVertexBufferUsageGL(VertexBufferUsage usage) {
+static constexpr GLenum getVertexBufferUsageGL(VertexBufferUsage usage) {
     switch (usage) {
         case VertexBufferUsage::Static:
             return GL_STATIC_DRAW;
@@ -15,26 +15,26 @@ constexpr GLenum getVertexBufferUsageGL(VertexBufferUsage usage) {
             return GL_STATIC_DRAW;
     }
 }
-constexpr GLenum getTopologyGL(Topology topology) {
+static constexpr GLenum getTopologyGL(Topology topology) {
     switch (topology) {
-        case Topology::TRIANGLE_LIST:
+        case Topology::TriangleList:
             return GL_TRIANGLES;
-        case Topology::TRIANGLE_FAN:
+        case Topology::TriangleFan:
             return GL_TRIANGLE_FAN;
-        case Topology::TRIANGLE_STRIP:
+        case Topology::TriangleStrip:
             return GL_TRIANGLE_STRIP;
-        case Topology::LINE_LIST:
+        case Topology::LineList:
             return GL_LINES;
-        case Topology::LINE_STRIP:
+        case Topology::LineStrip:
             return GL_LINE_STRIP;
-        case Topology::LINE_LOOP:
+        case Topology::LineLoop:
             return GL_LINE_LOOP;
         default:
             return GL_TRIANGLES;
     }
 }
 
-constexpr uint32_t getVertexAttributeTypeSizeInBytes(VertexAttributeType type) {
+static constexpr uint32_t getVertexAttributeTypeSizeInBytes(VertexAttributeType type) {
     switch (type) {
         case VertexAttributeType::Double:
             return sizeof(double);
@@ -56,7 +56,7 @@ constexpr uint32_t getVertexAttributeTypeSizeInBytes(VertexAttributeType type) {
             return sizeof(float);
     }
 }
-constexpr GLuint getVertexAttributeDivisorGL(VertexAttributeDivisor divisor) {
+static constexpr GLuint getVertexAttributeDivisorGL(VertexAttributeDivisor divisor) {
     switch (divisor) {
         case VertexAttributeDivisor::PerVertex:
             return 0;
@@ -113,9 +113,6 @@ void ElementBuffer::setData(const std::vector<uint32_t> &data) {
 uint32_t ElementBuffer::getNumElements() const {
     return this->numElements;
 }
-
-VertexAttribute::VertexAttribute(VertexAttributeType type, VertexAttributeSize size, VertexAttributeDivisor divisor) : type(type), size(size), divisor(divisor) {}
-VertexAttribute::~VertexAttribute() {}
 
 VertexArray::VertexArray() {
     glGenVertexArrays(1, &this->id);
@@ -222,4 +219,26 @@ void VertexArray::bindVertexBuffer(const VertexBuffer &buffer, const std::vector
     }
 
     this->numAttributes += static_cast<uint32_t>(attributes.size());
+}
+
+void VertexArray::updateVertexCount(const VertexBuffer &buffer) {
+    if (this->numVertices == 0) {
+        this->numVertices = buffer.getSizeInBytes() / this->numAttributes;
+    } else {
+        uint32_t newVertexCount = buffer.getSizeInBytes() / this->numAttributes;
+        if (newVertexCount != this->numVertices) {
+            fprintf(stderr, "Warning: Vertex count mismatch! Expected %u, got %u\n", this->numVertices, newVertexCount);
+            this->numVertices = newVertexCount;
+        }
+    }
+}
+void VertexArray::updateElementCount(const ElementBuffer &buffer) {
+    this->numVertices = buffer.getNumElements();
+}
+
+uint32_t VertexArray::getId() const {
+    return this->id;
+}
+uint32_t VertexArray::getVertexCount() const {
+    return this->numVertices;
 }

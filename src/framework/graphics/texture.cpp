@@ -1,27 +1,58 @@
 #include "texture.hpp"
 
-static GLuint boundTexture = 0;
+static uint32_t boundTexture = 0;
 
-Texture::Texture(GLuint id, uint32_t width, uint32_t height) : id(id), width(width), height(height) {}
-Texture::Texture() : id(0), width(0), height(0) {}
-Texture::~Texture() {
-    if (this->id != 0) {
-        glDeleteTextures(1, &this->id);
+static void destroyTexture(uint32_t texture) {
+    if (texture == 0) {
+        return;
     }
+    if (boundTexture == texture) {
+        boundTexture = 0;
+    }
+
+    glDeleteTextures(1, &texture);
 }
 
-Texture::Texture(Texture&& other) noexcept {
-    this->id = other.id;
-    this->width = other.width;
-    this->height = other.height;
+Texture::Texture() {}
+Texture::Texture(uint32_t id, uint32_t width, uint32_t height) : id(id), width(width), height(height) {}
+Texture::~Texture() {
+    destroyTexture(this->id);
+}
 
+void Texture::bind(uint32_t slot) const {
+    if (boundTexture == this->id) {
+        return;
+    }
+
+    glActiveTexture(GL_TEXTURE0 + slot);
+    glBindTexture(GL_TEXTURE_2D, this->id);
+
+    boundTexture = this->id;
+}
+
+uint32_t Texture::getId() const {
+    return this->id;
+}
+
+uint32_t Texture::getWidth() const {
+    return this->width;
+}
+uint32_t Texture::getHeight() const {
+    return this->height;
+}
+
+bool Texture::isValid() const {
+    return this->id != 0;
+}
+
+Texture::Texture(Texture &&other) noexcept : id(other.id), width(other.width), height(other.height) {
     other.id = 0;
     other.width = 0;
     other.height = 0;
 }
 Texture &Texture::operator=(Texture &&other) noexcept {
     if (this != &other) {
-        glDeleteTextures(1, &id);
+        destroyTexture(this->id);
 
         this->id = other.id;
         this->width = other.width;
@@ -35,14 +66,21 @@ Texture &Texture::operator=(Texture &&other) noexcept {
     return *this;
 }
 
-Texture Texture::fromFile(const char *path, TextureInternalFormat internalFormat, TextureFormat format, TextureType type, TextureFilter filter, TextureWrap wrap) {
+Texture Texture::fromFile(const char *path, const Texture::Properties &properties) {
     SDL_Surface *surface = IMG_Load(path);
     if (surface == nullptr) {
         throwFatal("IMG_Load", "Failed to load texture from file. Surface is nullptr.");
         return Texture();
     }
 
+    if (!SDL_FlipSurface(surface, SDL_FLIP_VERTICAL)) {
+        throwFatal("SDL_FlipSurface", "Failed to flip surface.");
+        SDL_DestroySurface(surface);
+        return Texture();
+    }
+
     SDL_PixelFormat sdlPixelFormat;
+    TextureFormat format = properties.format;
     switch (format) {
         case TextureFormat::RGBA:
             sdlPixelFormat = SDL_PIXELFORMAT_RGBA32;
@@ -67,12 +105,12 @@ Texture Texture::fromFile(const char *path, TextureInternalFormat internalFormat
         return Texture();
     }
 
-    GLuint texture = 0;
+    uint32_t texture = 0;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
     int bytesPerPixel = 0;
-    switch (format) {
+    switch (properties.format) {
         case TextureFormat::R:    bytesPerPixel = 1; break;
         case TextureFormat::RG:   bytesPerPixel = 2; break;
         case TextureFormat::RGB:  bytesPerPixel = 3; break;
@@ -86,20 +124,20 @@ Texture Texture::fromFile(const char *path, TextureInternalFormat internalFormat
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
-        static_cast<GLint>(internalFormat),
+        static_cast<GLint>(properties.internalFormat),
         static_cast<GLsizei>(width),
         static_cast<GLsizei>(height),
         0,
         static_cast<GLenum>(format),
-        static_cast<GLenum>(type),
+        static_cast<GLenum>(properties.type),
         surface->pixels
     );
     SDL_DestroySurface(surface);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(filter));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(filter));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(wrap));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(wrap));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(properties.filter));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(properties.filter));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(properties.wrap));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(properties.wrap));
 
     // TODO: Generate mipmaps if filter one of MIPMAP options
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -108,13 +146,13 @@ Texture Texture::fromFile(const char *path, TextureInternalFormat internalFormat
 
     return Texture(texture, width, height);
 }
-Texture Texture::fromPixels(const void *data, GLsizei width, GLsizei height, TextureInternalFormat internalFormat, TextureFormat format, TextureType type, TextureFilter filter, TextureWrap wrap) {
-    GLuint texture = 0;
+Texture Texture::fromPixels(const void *data, uint32_t width, uint32_t height, const Texture::Properties &properties) {
+    uint32_t texture = 0;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
     int bytesPerPixel = 0;
-    switch (format) {
+    switch (properties.format) {
         case TextureFormat::R:    bytesPerPixel = 1; break;
         case TextureFormat::RG:   bytesPerPixel = 2; break;
         case TextureFormat::RGB:  bytesPerPixel = 3; break;
@@ -125,12 +163,12 @@ Texture Texture::fromPixels(const void *data, GLsizei width, GLsizei height, Tex
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     }
 
-    glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(internalFormat), width, height, 0, static_cast<GLenum>(format), static_cast<GLenum>(type), data);
+    glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(properties.internalFormat), width, height, 0, static_cast<GLenum>(properties.format), static_cast<GLenum>(properties.type), data);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(filter));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(filter));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(wrap));
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(wrap));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(properties.filter));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(properties.filter));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(properties.wrap));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(properties.wrap));
 
     // TODO: Generate mipmaps if filter one of MIPMAP options
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -138,47 +176,4 @@ Texture Texture::fromPixels(const void *data, GLsizei width, GLsizei height, Tex
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     return Texture(texture, width, height);
-}
-
-void Texture::bind(uint32_t slot) const {
-    if (boundTexture == this->id) {
-        return;
-    }
-
-    glActiveTexture(GL_TEXTURE0 + slot);
-    glBindTexture(GL_TEXTURE_2D, this->id);
-
-    boundTexture = this->id;
-}
-
-GLuint Texture::getId() const {
-    return this->id;
-}
-
-uint32_t Texture::getWidth() const {
-    return this->width;
-}
-uint32_t Texture::getHeight() const {
-    return this->height;
-}
-
-TextureView::TextureView() {}
-TextureView::TextureView(const Texture &texture) {
-    this->id = texture.getId();
-}
-TextureView::~TextureView() {}
-
-void TextureView::bind(uint32_t slot) const {
-    if (boundTexture == this->id) {
-        return;
-    }
-    
-    glActiveTexture(GL_TEXTURE0 + slot);
-    glBindTexture(GL_TEXTURE_2D, this->id);
-
-    boundTexture = this->id;
-}
-
-GLuint TextureView::getId() const {
-    return this->id;
 }

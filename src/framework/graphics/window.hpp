@@ -1,6 +1,5 @@
 #pragma once
 #include <SDL3/SDL.h>
-#include <GL/glew.h>
 
 class Window {
 private:
@@ -10,7 +9,13 @@ private:
     int width = 0, height = 0;
     bool running = false;
 public:
-    Window(const char *title, int width, int height, bool resizable, bool vsync);
+    struct Config {
+        const char *title = "Window";
+        int width = 800, height = 600;
+        bool resizable = true, vsync = false;
+    };
+
+    Window(const Config& config);
     ~Window();
 
     void swapBuffers() const;
@@ -18,6 +23,9 @@ public:
 
     int getWidth() const;
     int getHeight() const;
+
+    float getHorizontalAspect() const;
+    float getVerticalAspect() const;
     
     bool isRunning() const;
 };
