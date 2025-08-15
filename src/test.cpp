@@ -80,7 +80,7 @@ int main() {
     });
 
     Entity seryoha = ecs.spawn();
-    ecs.addComponent<MeshComponent>(seryoha, mesh, seryohaTexture, glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+    ecs.addComponent<MeshComponent>(seryoha, mesh, seryohaTexture, glm::vec4(1.0f));
     ecs.addComponent<Transform3DComponent>(seryoha);
 
     FreeType freeType = FreeType();

@@ -24,10 +24,6 @@ static void drawText(const ShaderProgram &shader, const TextComponent &text, con
     text.getMesh().draw();
 }
 static void drawSprite(const VertexArray &vertexArray, const ShaderProgram &shader, const SpriteComponent &sprite, const glm::mat4 &projectionViewMatrix, const glm::mat4 &modelMatrix) {
-    if (sprite.texture == nullptr) {
-        return;
-    }
-
     shader.setMat4("u_ProjectionViewModelMatrix", projectionViewMatrix * modelMatrix);
     shader.setMat4("u_ModelMatrix", modelMatrix);
     shader.setVec4("u_Color", sprite.color);
