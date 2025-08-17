@@ -1,11 +1,10 @@
 #pragma once
-#include <msdf-atlas-gen/msdf-atlas-gen.h>
-#include <glm/glm.hpp>
 #include <unordered_map>
 #include <string>
-
-#include "../../framework/graphics/buffers.hpp"
-#include "../../framework/graphics/texture.hpp"
+#include <glm/glm.hpp>
+#include <msdf-atlas-gen/msdf-atlas-gen.h>
+#include <framework/graphics/buffers.hpp>
+#include <framework/graphics/texture.hpp>
 
 struct Glyph {
     glm::vec4 boundsLBRT;
@@ -24,21 +23,16 @@ public:
     msdfgen::FreetypeHandle *getHandle() const;
 };
 
-struct TextVertex {
-    float x, y, u, v;
-};
 class Font {
 private:
     Texture texture = Texture();
     std::unordered_map<wchar_t, Glyph> glyphs = std::unordered_map<wchar_t, Glyph>();
 public:
     static constexpr float FONT_HEIGHT = 8.0f; // I don't fucking care what user thinks, 8.0 is always enough for 4.5/5 quality of the atlas and speed of generation
-    static constexpr float PIXEL_RANGE = 2.0f; // Idk what it does, so I'll just keep it at 1.0f. If someone knows why tf I need to have it more or less than just 1.0f, please tell me :)
+    static constexpr float PIXEL_RANGE = 2.0f; // Idk what it does, so I'll just keep it at 2.0f. If someone knows why tf I need to have it more or less than just 1.0f, please tell me :)
 
     Font(const FreeType &freeType, const std::string &filename);
     ~Font();
-
-    std::vector<TextVertex> createText(const std::wstring &text) const;
 
     float getTextWidth(const std::wstring &text) const;
 

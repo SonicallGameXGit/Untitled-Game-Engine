@@ -1,7 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
-#include "mesh.hpp"
-#include "../../../framework/graphics/texture.hpp"
+#include <framework/graphics/texture.hpp>
 
 struct Transform3DComponent {
     glm::vec3 position = glm::vec3();

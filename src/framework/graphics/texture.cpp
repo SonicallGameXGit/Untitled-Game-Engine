@@ -69,12 +69,12 @@ Texture &Texture::operator=(Texture &&other) noexcept {
 Texture Texture::fromFile(const char *path, const Texture::Properties &properties) {
     SDL_Surface *surface = IMG_Load(path);
     if (surface == nullptr) {
-        throwFatal("IMG_Load", "Failed to load texture from file. Surface is nullptr.");
+        Debug::throwFatal("IMG_Load", "Failed to load texture from file. Surface is nullptr.");
         return Texture();
     }
 
     if (!SDL_FlipSurface(surface, SDL_FLIP_VERTICAL)) {
-        throwFatal("SDL_FlipSurface", "Failed to flip surface.");
+        Debug::throwFatal("SDL_FlipSurface", "Failed to flip surface.");
         SDL_DestroySurface(surface);
         return Texture();
     }
@@ -101,7 +101,7 @@ Texture Texture::fromFile(const char *path, const Texture::Properties &propertie
     }
 
     if (surface == nullptr) {
-        throwFatal("SDL_ConvertSurface", "Failed to convert texture format.");
+        Debug::throwFatal("SDL_ConvertSurface", "Failed to convert texture format.");
         return Texture();
     }
 

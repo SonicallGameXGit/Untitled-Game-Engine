@@ -1,13 +1,12 @@
 #include "text.hpp"
-
 #include <string>
 #include <SDL3_image/SDL_image.h>
-#include "../../framework/util/debug.hpp"
+#include <framework/util/debug.hpp>
 
 FreeType::FreeType() {
     this->handle = msdfgen::initializeFreetype();
     if (this->handle == nullptr) {
-        throwFatal("msdf_atlas::initializeFreetype", "Failed to initialize MSDFGen.");
+        Debug::throwFatal("msdf_atlas::initializeFreetype", "Failed to initialize MSDFGen.");
         return;
     }
 }
@@ -22,7 +21,7 @@ msdfgen::FreetypeHandle *FreeType::getHandle() const {
 Font::Font(const FreeType &freeType, const std::string &filename) {
     msdfgen::FontHandle *font = msdfgen::loadFont(freeType.getHandle(), filename.c_str());
     if (font == nullptr) {
-        throwFatal("msdfgen::loadFont", std::string("Failed to load font: ") + filename);
+        Debug::throwFatal("msdfgen::loadFont", std::string("Failed to load font: ") + filename);
         return;
     }
     std::vector<msdf_atlas::GlyphGeometry> glyphs = std::vector<msdf_atlas::GlyphGeometry>();
@@ -38,7 +37,7 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
     int glyphsLoaded = geometry.loadCharset(font, Font::FONT_HEIGHT, charset);
     if (glyphsLoaded <= 0) {
         msdfgen::destroyFont(font);
-        throwFatal("msdf_atlas::FontGeometry::loadCharset", "Not enough glyphs loaded! " + std::to_string(glyphsLoaded) + " of " + std::to_string(charset.size()) + ". Font: " + filename);
+        Debug::throwFatal("msdf_atlas::FontGeometry::loadCharset", "Not enough glyphs loaded! " + std::to_string(glyphsLoaded) + " of " + std::to_string(charset.size()) + ". Font: " + filename);
         return;
     }
 
@@ -57,7 +56,7 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
     const int packerSuccess = 0;
     if (packer.pack(glyphs.data(), glyphsLoaded) != packerSuccess) {
         msdfgen::destroyFont(font);
-        throwFatal("msdf_atlas::TightAtlasPacker::pack", std::string("Failed to pack all glyphs! Font: ") + filename);
+        Debug::throwFatal("msdf_atlas::TightAtlasPacker::pack", std::string("Failed to pack all glyphs! Font: ") + filename);
         return;
     }
 
@@ -146,43 +145,6 @@ const Glyph *Font::getGlyph(wchar_t character) const {
 }
 const Texture &Font::getTexture() const {
     return this->texture;
-}
-
-std::vector<TextVertex> Font::createText(const std::wstring &text) const {
-    std::vector<TextVertex> vertices = std::vector<TextVertex>();
-    float penX = 0.0f, penY = -1.0f;
-
-    for (wchar_t character : text) {
-        if (character == L'\n') {
-            penX = 0.0f;
-            penY -= 1.0f;
-
-            continue;
-        }
-
-        const Glyph *glyph = this->getGlyph(character);
-        if (glyph == nullptr) continue;
-
-        float x0 = penX + glyph->boundsLBRT.x;
-        float y0 = penY + glyph->boundsLBRT.y;
-        float x1 = penX + glyph->boundsLBRT.z;
-        float y1 = penY + glyph->boundsLBRT.w;
-
-        glm::vec2 uv0 = glm::vec2(glyph->uvLBRT.x, glyph->uvLBRT.y);
-        glm::vec2 uv1 = glm::vec2(glyph->uvLBRT.z, glyph->uvLBRT.w);
-
-        vertices.emplace_back(x0, y0, uv0.x, uv0.y);
-        vertices.emplace_back(x1, y0, uv1.x, uv0.y);
-        vertices.emplace_back(x1, y1, uv1.x, uv1.y);
-
-        vertices.emplace_back(x0, y0, uv0.x, uv0.y);
-        vertices.emplace_back(x1, y1, uv1.x, uv1.y);
-        vertices.emplace_back(x0, y1, uv0.x, uv1.y);
-
-        penX += glyph->advance;
-    }
-
-    return vertices;
 }
 
 TextMesh::TextMesh() {

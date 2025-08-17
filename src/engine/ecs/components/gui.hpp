@@ -1,6 +1,6 @@
 #pragma once
-#include "../../gui/text.hpp"
-#include "../../../framework/graphics/texture.hpp"
+#include <engine/graphics/gui/text.hpp>
+#include <framework/graphics/texture.hpp>
 
 class TextComponent {
 private:

@@ -1,6 +1,6 @@
 #pragma once
-#include "../../world/mesh.hpp"
-#include "../../../framework/graphics/texture.hpp"
+#include <engine/world/mesh.hpp>
+#include <framework/graphics/texture.hpp>
 #include <glm/glm.hpp>
 
 struct MeshComponent {

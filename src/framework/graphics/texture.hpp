@@ -1,7 +1,7 @@
 #pragma once
 #include <SDL3_image/SDL_image.h>
 #include <glad/glad.h>
-#include "../util/debug.hpp"
+#include <framework/util/debug.hpp>
 
 enum class TextureFilter : uint32_t {
     Nearest = GL_NEAREST,

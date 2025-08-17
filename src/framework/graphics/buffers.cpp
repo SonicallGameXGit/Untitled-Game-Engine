@@ -1,5 +1,4 @@
 #include "buffers.hpp"
-#include <stdio.h>
 
 static uint32_t boundVertexBuffer = 0;
 static uint32_t boundElementBuffer = 0;

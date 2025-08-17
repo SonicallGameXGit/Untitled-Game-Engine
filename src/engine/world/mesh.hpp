@@ -1,5 +1,5 @@
 #pragma once
-#include "../../framework/graphics/buffers.hpp"
+#include <framework/graphics/buffers.hpp>
 
 struct Vertex {
     float x, y, z;

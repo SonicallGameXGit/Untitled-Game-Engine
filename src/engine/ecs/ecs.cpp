@@ -3,8 +3,15 @@
 ECS::ECS() {}
 ECS::~ECS() {}
 
+static uint64_t latestIndex = 0;
+
+EntityIdentifier::EntityIdentifier() : index(latestIndex) { latestIndex++; }
+
 Entity ECS::spawn() {
-    return this->registry.create();
+    Entity entity = this->registry.create();
+    this->addComponent<EntityIdentifier>(entity);
+
+    return entity;
 }
 void ECS::destroy(Entity entity) {
     this->registry.destroy(entity);

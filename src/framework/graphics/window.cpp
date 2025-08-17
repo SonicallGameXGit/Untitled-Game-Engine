@@ -1,27 +1,27 @@
 #include "window.hpp"
 #include <glad/glad.h>
-#include "../util/debug.hpp"
+#include <framework/util/debug.hpp>
 
 Window::Window(const Window::Config &config) : width(config.width), height(config.height) {
     if (!SDL_Init(SDL_INIT_EVENTS | SDL_INIT_VIDEO)) {
-        throwFatal("SDL_Init", "Failed to initialize SDL.");
+        Debug::throwFatal("SDL_Init", "Failed to initialize SDL.");
         return;
     }
 
     this->handle = SDL_CreateWindow(config.title, this->width, this->height, SDL_WINDOW_OPENGL | (config.resizable ? SDL_WINDOW_RESIZABLE : 0));
     if (this->handle == nullptr) {
-        throwFatal("SDL_CreateWindow", "Failed to create window.");
+        Debug::throwFatal("SDL_CreateWindow", "Failed to create window.");
         return;
     }
 
     this->context = SDL_GL_CreateContext(this->handle);
     if (this->context == nullptr) {
-        throwFatal("SDL_GL_CreateContext", "Failed to create GL context.");
+        Debug::throwFatal("SDL_GL_CreateContext", "Failed to create GL context.");
         return;
     }
 
     if (!gladLoadGL()) {
-        throwFatal("gladLoadGL", "Failed to load OpenGL functions.");
+        Debug::throwFatal("gladLoadGL", "Failed to load OpenGL functions.");
         return;
     }
 

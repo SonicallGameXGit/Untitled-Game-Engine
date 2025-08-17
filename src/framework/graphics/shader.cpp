@@ -1,5 +1,4 @@
 #include "shader.hpp"
-
 #include <fstream>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -19,7 +18,7 @@ static uint32_t createShader(const char *source, ShaderType type) {
         std::string log(length, ' ');
         glGetShaderInfoLog(shaderId, length, nullptr, &log[0]);
 
-        throwFatal("glCompileShader", "Failed to compile shader. Error:\n" + log + "\nSource:\n" + source + '\n');
+        Debug::throwFatal("glCompileShader", "Failed to compile shader. Error:\n" + log + "\nSource:\n" + source + '\n');
         return 0;
     }
 
@@ -33,7 +32,7 @@ Shader::~Shader() {
 Shader Shader::fromFile(const std::string &path, ShaderType type) {
     std::ifstream file = std::ifstream(path);
     if (!file.is_open()) {
-        throwFatal("std::ifstream", "Failed to open file: " + path);
+        Debug::throwFatal("std::ifstream", "Failed to open file: " + path);
         return Shader(0);
     }
 
@@ -67,7 +66,7 @@ ShaderProgram::ShaderProgram(const std::vector<Shader> &shaders) {
         std::string log(length, ' ');
         glGetProgramInfoLog(this->id, length, nullptr, &log[0]);
 
-        throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
+        Debug::throwFatal("glLinkProgram", "Failed to link shader program. Log:\n" + log);
         return;
     }
 }
@@ -84,39 +83,51 @@ void ShaderProgram::bind() const {
 }
 
 void ShaderProgram::setBool(const char *name, bool value) const {
+    this->bind();
     glUniform1i(glGetUniformLocation(this->id, name), value);
 }
 void ShaderProgram::setInt(const char *name, int value) const {
+    this->bind();
     glUniform1i(glGetUniformLocation(this->id, name), value);
 }
 void ShaderProgram::setFloat(const char *name, float value) const {
+    this->bind();
     glUniform1f(glGetUniformLocation(this->id, name), value);
 }
 void ShaderProgram::setVec2(const char *name, float x, float y) const {
+    this->bind();
     glUniform2f(glGetUniformLocation(this->id, name), x, y);
 }
 void ShaderProgram::setVec2(const char *name, const glm::vec2 &vector) const {
+    this->bind();
     glUniform2f(glGetUniformLocation(this->id, name), vector.x, vector.y);
 }
 void ShaderProgram::setVec3(const char *name, float x, float y, float z) const {
+    this->bind();
     glUniform3f(glGetUniformLocation(this->id, name), x, y, z);
 }
 void ShaderProgram::setVec3(const char *name, const glm::vec3 &vector) const {
+    this->bind();
     glUniform3f(glGetUniformLocation(this->id, name), vector.x, vector.y, vector.z);
 }
 void ShaderProgram::setVec4(const char *name, float x, float y, float z, float w) const {
+    this->bind();
     glUniform4f(glGetUniformLocation(this->id, name), x, y, z, w);
 }
 void ShaderProgram::setVec4(const char *name, const glm::vec4 &vector) const {
+    this->bind();
     glUniform4f(glGetUniformLocation(this->id, name), vector.x, vector.y, vector.z, vector.w);
 }
 
 void ShaderProgram::setMat2(const char *name, const glm::mat2 &matrix) const {
+    this->bind();
     glUniformMatrix2fv(glGetUniformLocation(this->id, name), 1, false, glm::value_ptr(matrix));
 }
 void ShaderProgram::setMat3(const char *name, const glm::mat3 &matrix) const {
+    this->bind();
     glUniformMatrix3fv(glGetUniformLocation(this->id, name), 1, false, glm::value_ptr(matrix));
 }
 void ShaderProgram::setMat4(const char *name, const glm::mat4 &matrix) const {
+    this->bind();
     glUniformMatrix4fv(glGetUniformLocation(this->id, name), 1, false, glm::value_ptr(matrix));
 }

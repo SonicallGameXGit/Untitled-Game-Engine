@@ -1,10 +1,9 @@
 #pragma once
-#include <glad/glad.h>
 #include <vector>
 #include <string>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
-
-#include "../util/debug.hpp"
+#include <framework/util/debug.hpp>
 
 enum class ShaderType : uint32_t {
     Vertex = GL_VERTEX_SHADER,

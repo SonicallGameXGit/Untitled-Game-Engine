@@ -3,6 +3,11 @@
 
 typedef entt::entity Entity;
 
+struct EntityIdentifier {
+    uint64_t index = 0;
+    EntityIdentifier();
+};
+
 class ECS {
 private:
     entt::registry registry = entt::registry();
@@ -23,20 +28,20 @@ public:
     }
 
     template<typename T, typename ...Other>
-    bool hasComponents(Entity entity) {
+    bool hasComponents(Entity entity) const {
         return this->registry.any_of<T, Other...>(entity);
     }
     template<typename ...T>
-    auto &getComponent(Entity entity) {
+    auto &getMutableComponent(Entity entity) {
+        return this->registry.get<T...>(entity);
+    }
+    template<typename ...T>
+    auto &getComponent(Entity entity) const {
         return this->registry.get<T...>(entity);
     }
 
     template<typename T, typename ...Other>
-    auto listAllEntitiesWith() const {
-        return this->registry.view<T, Other...>();
-    }
-    template<typename T, typename ...Other>
-    auto getAllEntitiesWith() {
+    auto getAllEntitiesWith() const {
         return this->registry.view<T, Other...>();
     }
 };

@@ -1,4 +1,4 @@
-#include "includes.hpp"
+#include <includes.hpp>
 
 int main() {
     if (hasCriticalErrors()) return 1;
@@ -14,9 +14,7 @@ int main() {
     Camera camera = Camera();
     camera.position.z = 2.0f;
 
-    WorldRenderer worldRenderer = WorldRenderer();
-    TextRenderer textRenderer = TextRenderer();
-    SpriteRenderer spriteRenderer = SpriteRenderer();
+    Renderer renderer = Renderer();
 
     Mesh mesh = Mesh({
         // Front face
@@ -93,18 +91,19 @@ int main() {
     ecs.addComponent<TextComponent>(textEntity, tnrFont, sourceText, glm::vec4(1.0f, 1.0f, 0.0f, 1.0f));
     ecs.addComponent<Transform2DComponent>(textEntity, glm::vec2(), 0.0f, glm::vec2(0.1f));
 
-    Entity flyingTextEntity = ecs.spawn();
-    ecs.addComponent<TextComponent>(flyingTextEntity, dosFont, L"Exe-Boi - пиши на C++ блять", glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-    ecs.addComponent<Transform3DComponent>(flyingTextEntity, glm::vec3(), glm::vec3(), glm::vec3(0.1f));
+    // Entity flyingTextEntity = ecs.spawn();
+    // ecs.addComponent<TextComponent>(flyingTextEntity, dosFont, L"Exe-Boi - пиши на C++ блять", glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+    // ecs.addComponent<Transform3DComponent>(flyingTextEntity, glm::vec3(), glm::vec3(), glm::vec3(0.1f));
 
+    
     Entity fpsTextEntity = ecs.spawn();
     ecs.addComponent<TextComponent>(fpsTextEntity, sansFont, L"FPS: 0", glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
     ecs.addComponent<Transform2DComponent>(fpsTextEntity, glm::vec2(), 0.0f, glm::vec2(0.2f));
 
     Entity svoEntity = ecs.spawn();
-    ecs.addComponent<SpriteComponent>(svoEntity, svoTexture);
+    ecs.addComponent<SpriteComponent>(svoEntity, svoTexture, glm::vec4(1.0f, 1.0f, 1.0f, 0.4f));
     ecs.addComponent<Transform2DComponent>(svoEntity, glm::vec2(0.55f), 0.0f, glm::vec2(0.4f));
-
+    
     uint32_t fps = 0;
     uint64_t fpsTimer = 0;
 
@@ -117,7 +116,7 @@ int main() {
         fpsTimer += deltaTime;
         fps++;
         if (fpsTimer >= 1e9) { // 1 second
-            TextComponent &fpsText = ecs.getComponent<TextComponent>(fpsTextEntity);
+            TextComponent &fpsText = ecs.getMutableComponent<TextComponent>(fpsTextEntity);
             fpsText.setText(L"FPS: " + std::to_wstring(fps));
 
             if (fps < 15) {
@@ -137,34 +136,30 @@ int main() {
         window.pollEvents();
         camera.update(window);
 
-        Transform3DComponent &transform = ecs.getComponent<Transform3DComponent>(seryoha);
+        Transform3DComponent &transform = ecs.getMutableComponent<Transform3DComponent>(seryoha);
         transform.rotation.x = SDL_GetTicks() / 1000.0f * 45.0f;
         transform.rotation.y = SDL_GetTicks() / 1000.0f * 60.0f;
 
-        constexpr float speed = 0.2f;
-        Transform3DComponent &flyingTextTransform = ecs.getComponent<Transform3DComponent>(flyingTextEntity);
-        flyingTextTransform.position.x = std::sin(SDL_GetTicks() / 1000.0f * SDL_PI_F * speed) * 1.1f;
-        flyingTextTransform.position.z = std::cos(SDL_GetTicks() / 1000.0f * SDL_PI_F * speed) * 1.1f;
-        flyingTextTransform.rotation.y = SDL_GetTicks() / 1000.0f * 180.0f * speed + 45.0f;
+        // constexpr float speed = 0.2f;
+        // Transform3DComponent &flyingTextTransform = ecs.getMutableComponent<Transform3DComponent>(flyingTextEntity);
+        // flyingTextTransform.position.x = std::sin(SDL_GetTicks() / 1000.0f * SDL_PI_F * speed) * 1.1f;
+        // flyingTextTransform.position.z = std::cos(SDL_GetTicks() / 1000.0f * SDL_PI_F * speed) * 1.1f;
+        // flyingTextTransform.rotation.y = SDL_GetTicks() / 1000.0f * 180.0f * speed + 45.0f;
 
         const TextComponent &textComponent = ecs.getComponent<TextComponent>(textEntity);
-        Transform2DComponent &textTransform = ecs.getComponent<Transform2DComponent>(textEntity);
+        Transform2DComponent &textTransform = ecs.getMutableComponent<Transform2DComponent>(textEntity);
         textTransform.position.x = -textComponent.getFont()->getTextWidth(textComponent.getText()) * 0.5f * textTransform.scale.x;
         textTransform.position.y = -0.95f + textTransform.scale.y;
 
-        Transform2DComponent &fpsTextTransform = ecs.getComponent<Transform2DComponent>(fpsTextEntity);
+        Transform2DComponent &fpsTextTransform = ecs.getMutableComponent<Transform2DComponent>(fpsTextEntity);
         fpsTextTransform.position.x = 0.05f - window.getHorizontalAspect();
         fpsTextTransform.position.y = 0.95f;
 
-        Transform2DComponent &svoTransform = ecs.getComponent<Transform2DComponent>(svoEntity);
+        Transform2DComponent &svoTransform = ecs.getMutableComponent<Transform2DComponent>(svoEntity);
         svoTransform.position.x = window.getHorizontalAspect() - 0.45f;
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // TODO: Right now all renderers are work one after another, but if text will be logically in front of the sprite, it would be any ways drawn behind, just because it's impossible to draw above like that...
-        // Maybe join them at once somehow, or idk, I don't want to make a huge and fat piece of shit called "Reeeeeeendeeereeeeer", that's stupid!
-        worldRenderer.render(ecs, camera);
-        textRenderer.render(ecs, window, camera);
-        spriteRenderer.render(ecs, window, camera);
+        renderer.render(ecs, window, camera);
         window.swapBuffers();
     }
 

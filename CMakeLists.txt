@@ -59,11 +59,10 @@ add_executable(${PROJECT_NAME}
     src/framework/graphics/texture.cpp
 
     src/engine/world/camera.cpp
-    src/engine/world/renderer.cpp
     src/engine/world/mesh.cpp
     
-    src/engine/gui/text.cpp
-    src/engine/gui/renderer.cpp
+    src/engine/graphics/gui/text.cpp
+    src/engine/graphics/renderer.cpp
     
     src/engine/ecs/ecs.cpp
     src/engine/ecs/components/transform.cpp
@@ -72,6 +71,7 @@ add_executable(${PROJECT_NAME}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
     ${glad_BINARY_DIR}/include
     ${glm_SOURCE_DIR}
     ${sdl_SOURCE_DIR}/include

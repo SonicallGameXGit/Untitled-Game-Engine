@@ -1,6 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
-#include "../../framework/graphics/window.hpp"
+#include <framework/graphics/window.hpp>
 
 class Camera {
 private:
