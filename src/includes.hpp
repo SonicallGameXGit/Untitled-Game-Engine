@@ -8,6 +8,7 @@
 
 #include <engine/world/camera.hpp>
 #include <engine/world/mesh.hpp>
+#include <engine/world/world.hpp>
 
 #include <engine/graphics/gui/text.hpp>
 

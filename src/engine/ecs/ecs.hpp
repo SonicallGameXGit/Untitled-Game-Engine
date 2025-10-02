@@ -1,12 +1,8 @@
 #pragma once
 #include <entt/entt.hpp>
+#include <framework/graphics/window.hpp>
 
 typedef entt::entity Entity;
-
-struct EntityIdentifier {
-    uint64_t index = 0;
-    EntityIdentifier();
-};
 
 class ECS {
 private:
@@ -19,8 +15,8 @@ public:
     void destroy(Entity entity);
 
     template<typename T, typename ...Args>
-    void addComponent(Entity entity, Args &&...args) {
-        this->registry.emplace<T>(entity, std::forward<Args>(args)...);
+    T &addComponent(Entity entity, Args &&...args) {
+        return this->registry.emplace<T>(entity, std::forward<Args>(args)...);
     }
     template<typename T, typename ...Other>
     void removeComponents(Entity entity) {

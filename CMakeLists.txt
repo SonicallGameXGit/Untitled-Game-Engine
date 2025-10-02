@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
-project(GLEngine)
+project(Untitled-Game-Engine)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
@@ -60,6 +60,7 @@ add_executable(${PROJECT_NAME}
 
     src/engine/world/camera.cpp
     src/engine/world/mesh.cpp
+    src/engine/world/world.cpp
     
     src/engine/graphics/gui/text.cpp
     src/engine/graphics/renderer.cpp
@@ -89,7 +90,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()

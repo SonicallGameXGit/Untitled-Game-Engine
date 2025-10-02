@@ -66,7 +66,7 @@ Renderer::Renderer() {
 }
 Renderer::~Renderer() {}
 
-void Renderer::render(const ECS &ecs, const Window &window, const Camera &camera) const {
+void Renderer::render(const Window &window, const World &world) const {
     // Step 0: Initial setup for rendering
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -77,9 +77,9 @@ void Renderer::render(const ECS &ecs, const Window &window, const Camera &camera
         glEnable(GL_CULL_FACE);
         glDisable(GL_BLEND);
 
-        glm::mat4 projectionViewMatrix = camera.getProjectionViewMatrix();
+        glm::mat4 projectionViewMatrix = world.camera.getProjectionViewMatrix();
         auto transparentObjects = std::vector<std::tuple<MeshComponent, Transform3DComponent>>();
-        for (auto [_, mesh, transform] : ecs.getAllEntitiesWith<MeshComponent, Transform3DComponent>().each()) {
+        for (auto [_, mesh, transform] : world.getAllEntitiesWith<MeshComponent, Transform3DComponent>().each()) {
             if (mesh.color.a < 1.0f) {
                 transparentObjects.emplace_back(mesh, transform);
                 continue;
@@ -92,7 +92,7 @@ void Renderer::render(const ECS &ecs, const Window &window, const Camera &camera
         // FIXME: Don't just cull the faces of all transparent objects, but try to find way to render polygons from back to front if possible
         // TODO: Add depth sorting for transparent objects
         for (auto &[mesh, transform] : transparentObjects) {
-            drawWorld(this->worldShader, mesh, camera.getProjectionViewMatrix(), transform.getModelMatrix());
+            drawWorld(this->worldShader, mesh, world.camera.getProjectionViewMatrix(), transform.getModelMatrix());
         }
     }
 
@@ -105,9 +105,9 @@ void Renderer::render(const ECS &ecs, const Window &window, const Camera &camera
         float aspect = window.getHorizontalAspect();
         glm::mat4 projectionViewMatrix = glm::orthoLH(-aspect, aspect, -1.0f, 1.0f, -1.0f, 1.0f);
         
-        // EnTT doesn't guarantee that entt::entity (aka. Entity) would be the same as it's creation order due to optimizations and other stuff.
-        // TODO: If possible, optimize it, because that looks like a cringe
-        auto entitiesView = ecs.getAllEntitiesWith<EntityIdentifier, Transform2DComponent>().each();
+        // EnTT doesn't guarantee that entt::entity (aka. Entity) would be the same as its creation order due to optimizations and other stuff.
+        // TODO: If possible, optimize it, because that looks cringe
+        auto entitiesView = world.getAllEntitiesWith<EntityIdentifier, Transform2DComponent>().each();
         auto entities = std::vector<std::tuple<Entity, EntityIdentifier, Transform2DComponent>>();
         for (auto [entity, identifier, transform] : entitiesView) {
             entities.emplace_back(entity, identifier, transform);
@@ -117,19 +117,19 @@ void Renderer::render(const ECS &ecs, const Window &window, const Camera &camera
         });
 
         for (auto [entity, identifier, transform] : entities) {
-            if (ecs.hasComponents<SpriteComponent>(entity)) {
+            if (world.hasComponents<SpriteComponent>(entity)) {
                 drawSprite(
                     this->spriteVertexArray,
                     this->spriteShader,
-                    ecs.getComponent<SpriteComponent>(entity),
+                    world.getComponent<SpriteComponent>(entity),
                     projectionViewMatrix * transform.getModelMatrix()
                 );
                 continue;
             }
-            if (ecs.hasComponents<TextComponent>(entity)) {
+            if (world.hasComponents<TextComponent>(entity)) {
                 drawText(
                     this->textShader,
-                    ecs.getComponent<TextComponent>(entity),
+                    world.getComponent<TextComponent>(entity),
                     projectionViewMatrix * transform.getModelMatrix()
                 );
                 continue;

@@ -5,8 +5,8 @@
 class TextComponent {
 private:
     TextMesh textMesh = TextMesh();
-    std::wstring text = std::wstring();
     Font *font = nullptr;
+    std::wstring text = std::wstring();
 public:
     glm::vec4 color = glm::vec4(1.0f);
 
