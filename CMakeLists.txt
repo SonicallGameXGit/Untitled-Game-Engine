@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(Untitled-Game-Engine)
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.10) # David blyat', zaebal, obnovi CMake, dolboeb
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -92,7 +93,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /O2")
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
-else()
+elseif(GCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()

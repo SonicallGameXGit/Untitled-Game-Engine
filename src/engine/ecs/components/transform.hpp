@@ -3,6 +3,7 @@
 #include <framework/graphics/texture.hpp>
 
 struct Transform3DComponent {
+    glm::mat4 worldModelMatrix = glm::mat4(1.0f);
     glm::vec3 position = glm::vec3();
     glm::vec3 rotation = glm::vec3();
     glm::vec3 scale = glm::vec3(1.0f);
@@ -15,9 +16,10 @@ struct Transform3DComponent {
     glm::mat4 getModelMatrix() const;
 };
 struct Transform2DComponent {
+    glm::mat4 worldModelMatrix = glm::mat4(1.0f);
     glm::vec2 position = glm::vec2();
-    float rotation = 0.0f;
     glm::vec2 scale = glm::vec2(1.0f);
+    float rotation = 0.0f;
 
     Transform2DComponent();
     Transform2DComponent(const glm::vec2 &position);

@@ -31,5 +31,5 @@ public:
     Renderer();
     ~Renderer();
 
-    void render(const Window &window, const World &world) const;
+    void render(const Window &window, World &world) const;
 };

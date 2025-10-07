@@ -20,10 +20,31 @@ struct Script {
 class World {
 private:
     ECS ecs = ECS();
+    std::unordered_map<std::string, Entity> hierarchy = std::unordered_map<std::string, Entity>();
+
     struct ScriptComponent {
         Script *script = nullptr;
         ScriptComponent();
         ~ScriptComponent();
+    };
+    // AI never suggests shitty things!
+    // struct ScriptDeleter {
+    //     void operator()(ScriptComponent *component) const {
+    //         if (component->script != nullptr) {
+    //             delete component->script;
+    //             component->script = nullptr;
+    //         }
+    //         delete component;
+    //     }
+    // };
+    struct NodeComponent {
+        Entity parent = entt::null;
+        std::string name = std::string();
+        std::unordered_map<std::string, Entity> children = std::unordered_map<std::string, Entity>();
+
+        NodeComponent(const std::string &name);
+        NodeComponent(const std::string &name, Entity parent);
+        ~NodeComponent();
     };
 public:
     Camera camera = Camera();
@@ -31,8 +52,15 @@ public:
     World();
     ~World();
 
-    Entity spawn();
+    std::optional<Entity> spawn(const std::string &name, std::optional<Entity> parent);
     void destroy(Entity entity);
+
+    const std::string &getName(Entity entity) const;
+    void rename(Entity entity, const std::string &newName);
+
+    std::optional<Entity> find(const std::string &name, std::optional<Entity>) const;
+    std::optional<Entity> getParent(Entity child) const;
+    const std::unordered_map<std::string, Entity> &getChildren(std::optional<Entity> parent) const;
 
     template<typename T, typename ...Args>
     T &addComponent(Entity entity, Args &&...args) {

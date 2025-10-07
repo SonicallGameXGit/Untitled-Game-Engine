@@ -66,7 +66,34 @@ Renderer::Renderer() {
 }
 Renderer::~Renderer() {}
 
-void Renderer::render(const Window &window, const World &world) const {
+static void precomputeWorldMatrices(World &world, std::optional<Entity> parent) {
+    for (auto [key, value] : world.getChildren(parent)) {
+        if (world.hasComponents<Transform3DComponent>(value)) {
+            Transform3DComponent &transform = world.getMutableComponent<Transform3DComponent>(value);
+            if (parent.has_value() && world.hasComponents<Transform3DComponent>(parent.value())) {
+                transform.worldModelMatrix = world.getMutableComponent<Transform3DComponent>(parent.value()).worldModelMatrix * transform.getModelMatrix();
+            } else {
+                transform.worldModelMatrix = transform.getModelMatrix();
+            }
+        }
+        if (world.hasComponents<Transform2DComponent>(value)) {
+            Transform2DComponent &transform = world.getMutableComponent<Transform2DComponent>(value);
+            if (parent.has_value() && world.hasComponents<Transform2DComponent>(parent.value())) {
+                transform.worldModelMatrix = world.getMutableComponent<Transform2DComponent>(parent.value()).worldModelMatrix * transform.getModelMatrix();
+            } else {
+                transform.worldModelMatrix = transform.getModelMatrix();
+            }
+
+        }
+
+        precomputeWorldMatrices(world, value);
+    }
+}
+
+void Renderer::render(const Window &window, World &world) const {
+    // Step -1: Precompute world matrices for all entities
+    precomputeWorldMatrices(world, std::nullopt);
+
     // Step 0: Initial setup for rendering
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -85,14 +112,14 @@ void Renderer::render(const Window &window, const World &world) const {
                 continue;
             }
 
-            drawWorld(this->worldShader, mesh, projectionViewMatrix, transform.getModelMatrix());
+            drawWorld(this->worldShader, mesh, projectionViewMatrix, transform.worldModelMatrix);
         }
 
         glEnable(GL_BLEND);
         // FIXME: Don't just cull the faces of all transparent objects, but try to find way to render polygons from back to front if possible
         // TODO: Add depth sorting for transparent objects
         for (auto &[mesh, transform] : transparentObjects) {
-            drawWorld(this->worldShader, mesh, world.camera.getProjectionViewMatrix(), transform.getModelMatrix());
+            drawWorld(this->worldShader, mesh, world.camera.getProjectionViewMatrix(), transform.worldModelMatrix);
         }
     }
 
@@ -122,7 +149,7 @@ void Renderer::render(const Window &window, const World &world) const {
                     this->spriteVertexArray,
                     this->spriteShader,
                     world.getComponent<SpriteComponent>(entity),
-                    projectionViewMatrix * transform.getModelMatrix()
+                    projectionViewMatrix * transform.worldModelMatrix
                 );
                 continue;
             }
@@ -130,7 +157,7 @@ void Renderer::render(const Window &window, const World &world) const {
                 drawText(
                     this->textShader,
                     world.getComponent<TextComponent>(entity),
-                    projectionViewMatrix * transform.getModelMatrix()
+                    projectionViewMatrix * transform.worldModelMatrix
                 );
                 continue;
             }
