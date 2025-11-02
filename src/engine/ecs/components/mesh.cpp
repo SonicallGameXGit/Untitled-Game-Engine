@@ -13,9 +13,9 @@ void MeshComponent::setTexture(Texture *texture) {
     this->texture = texture;
 }
 
-const Mesh *MeshComponent::getMesh() const {
+Mesh *MeshComponent::getMesh() const {
     return this->mesh;
 }
-const Texture *MeshComponent::getTexture() const {
+Texture *MeshComponent::getTexture() const {
     return this->texture;
 }

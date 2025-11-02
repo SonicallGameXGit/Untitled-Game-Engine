@@ -13,6 +13,10 @@ World::NodeComponent::NodeComponent(const std::string &name) : name(name), paren
 World::NodeComponent::NodeComponent(const std::string &name, Entity parent) : name(name), parent(parent) {}
 World::NodeComponent::~NodeComponent() {}
 
+void Script::onLoad(World &world, Entity self) {}
+void Script::onUpdate(const Window& window, World &world, Entity self, float deltaTime) {}
+void Script::onDestroy(World &world, Entity self) {}
+
 World::World() {}
 World::~World() {
     auto view = this->getAllEntitiesWith<ScriptComponent>();
@@ -29,6 +33,7 @@ World::~World() {
 std::optional<Entity> World::spawn(const std::string &name, std::optional<Entity> parent) {
     if (!parent.has_value()) {
         if (this->hierarchy.find(name) != this->hierarchy.end()) {
+            // TODO: Instead of just giving std::nullopt, generate unique name like "{name} (1)", etc.
             return std::nullopt; // Dalbayob obnaruzhen
         }
 

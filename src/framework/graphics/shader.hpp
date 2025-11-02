@@ -14,7 +14,7 @@ enum class ShaderType : uint32_t {
 class Shader {
 private:
     uint32_t id = 0;
-    Shader(uint32_t id);
+    explicit Shader(uint32_t id);
 public:
     ~Shader();
 
@@ -27,7 +27,7 @@ class ShaderProgram {
 private:
     uint32_t id = 0;
 public:
-    ShaderProgram(const std::vector<Shader> &shaders);
+    explicit ShaderProgram(const std::vector<Shader> &shaders);
     ~ShaderProgram();
 
     void bind() const;

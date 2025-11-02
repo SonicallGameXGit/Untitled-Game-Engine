@@ -19,6 +19,10 @@ private:
         Shader::fromFile(ASSETS_DIR "/shaders/text.vert", ShaderType::Vertex),
         Shader::fromFile(ASSETS_DIR "/shaders/text.frag", ShaderType::Fragment)
     });
+    ShaderProgram guiShader = ShaderProgram({
+        Shader::fromFile(ASSETS_DIR "/shaders/gui.vert", ShaderType::Vertex),
+        Shader::fromFile(ASSETS_DIR "/shaders/gui.frag", ShaderType::Fragment)
+    });
 
     VertexBuffer spriteVertexBuffer = VertexBuffer(std::vector<float>({
         0.0f, 0.0f,

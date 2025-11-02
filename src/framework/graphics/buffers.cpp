@@ -1,4 +1,5 @@
 #include "buffers.hpp"
+#include <numeric>
 
 static uint32_t boundVertexBuffer = 0;
 static uint32_t boundElementBuffer = 0;
@@ -129,25 +130,25 @@ void VertexArray::bind() const {
 }
 
 void VertexArray::drawArrays(Topology topology) const {
-    if (this->numVertices <= 0) return;
+    if (this->numVertices == 0) return;
 
     this->bind();
     glDrawArrays(getTopologyGL(topology), 0, this->numVertices);
 }
 void VertexArray::drawArraysInstanced(Topology topology, uint32_t numInstances) const {
-    if (this->numVertices <= 0 || numInstances <= 0) return;
+    if (this->numVertices == 0 || numInstances == 0) return;
 
     this->bind();
     glDrawArraysInstanced(getTopologyGL(topology), 0, this->numVertices, numInstances);
 }
 void VertexArray::drawElements(Topology topology) const {
-    if (this->numVertices <= 0) return;
+    if (this->numVertices == 0) return;
 
     this->bind();
     glDrawElements(getTopologyGL(topology), this->numVertices, GL_UNSIGNED_INT, nullptr);
 }
 void VertexArray::drawElementsInstanced(Topology topology, uint32_t numInstances) const {
-    if (this->numVertices <= 0 || numInstances <= 0) return;
+    if (this->numVertices == 0 || numInstances == 0) return;
     
     this->bind();
     glDrawElementsInstanced(getTopologyGL(topology), this->numVertices, GL_UNSIGNED_INT, nullptr, numInstances);
@@ -163,10 +164,9 @@ void VertexArray::bindVertexBuffer(const VertexBuffer &buffer, const std::vector
     this->bind();
     buffer.bind();
 
-    uint32_t stride = 0;
-    for (size_t i = 0; i < attributes.size(); i++) {
-        stride += static_cast<uint32_t>(attributes[i].size) * static_cast<uint32_t>(getVertexAttributeTypeSizeInBytes(attributes[i].type));
-    }
+    uint32_t stride = std::accumulate(attributes.begin(), attributes.end(), 0, [](uint32_t sum, const VertexAttribute &attr) {
+        return sum + static_cast<uint32_t>(attr.size) * static_cast<uint32_t>(getVertexAttributeTypeSizeInBytes(attr.type));
+    });
 
     if (this->numVertices == 0) {
         this->numVertices = buffer.getSizeInBytes() / stride;
@@ -179,35 +179,35 @@ void VertexArray::bindVertexBuffer(const VertexBuffer &buffer, const std::vector
 
         switch (attributes[i].type) {
             case VertexAttributeType::Double:
-                glVertexAttribLPointer(index, static_cast<GLint>(attributes[i].size), GL_DOUBLE, stride, (void*)offset);
+                glVertexAttribLPointer(index, static_cast<GLint>(attributes[i].size), GL_DOUBLE, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(double);
                 break;
             case VertexAttributeType::Float:
-                glVertexAttribPointer(index, static_cast<GLint>(attributes[i].size), GL_FLOAT, GL_FALSE, stride, (void*)offset);
+                glVertexAttribPointer(index, static_cast<GLint>(attributes[i].size), GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(float);
                 break;
             case VertexAttributeType::UnsignedInt:
-                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_UNSIGNED_INT, stride, (void*)offset);
+                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_UNSIGNED_INT, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(unsigned int);
                 break;
             case VertexAttributeType::Int:
-                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_INT, stride, (void*)offset);
+                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_INT, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(int);
                 break;
             case VertexAttributeType::UnsignedShort:
-                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_UNSIGNED_SHORT, stride, (void*)offset);
+                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_UNSIGNED_SHORT, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(unsigned short);
                 break;
             case VertexAttributeType::Short:
-                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_SHORT, stride, (void*)offset);
+                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_SHORT, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(short);
                 break;
             case VertexAttributeType::UnsignedByte:
-                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_UNSIGNED_BYTE, stride, (void*)offset);
+                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_UNSIGNED_BYTE, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(unsigned char);
                 break;
             case VertexAttributeType::Byte:
-                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_BYTE, stride, (void*)offset);
+                glVertexAttribIPointer(index, static_cast<GLint>(attributes[i].size), GL_BYTE, stride, reinterpret_cast<void*>(offset));
                 offset += static_cast<uint32_t>(attributes[i].size) * sizeof(char);
                 break;
             default:

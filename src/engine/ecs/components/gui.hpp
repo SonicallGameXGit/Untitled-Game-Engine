@@ -1,34 +1,148 @@
 #pragma once
-#include <engine/graphics/gui/text.hpp>
-#include <framework/graphics/texture.hpp>
+#include <unordered_map>
+#include <inttypes.h>
+#include <glm/glm.hpp>
+#include <variant>
+#include <optional>
 
-class TextComponent {
-private:
-    TextMesh textMesh = TextMesh();
-    Font *font = nullptr;
-    std::wstring text = std::wstring();
-public:
-    glm::vec4 color = glm::vec4(1.0f);
-
-    TextComponent(Font &font);
-    TextComponent(Font &font, const std::wstring &text);
-    TextComponent(Font &font, const std::wstring &text, const glm::vec4 &color);
-    ~TextComponent();
-
-    void setFont(Font &font);
-    void setText(const std::wstring &text);
-
-    const Font *getFont() const;
-    const std::wstring &getText() const;
-    const TextMesh &getMesh() const;
+enum class Position : uint8_t {
+    Fixed, // Place exactly at (x, y)
+    Absolute, // Place exactly at (x, y) relative to parent
+    Relative // Give parent full control over placement
 };
-struct SpriteComponent {
-    Texture *texture = nullptr;
-    glm::vec4 color = glm::vec4(1.0f);
 
-    SpriteComponent();
-    SpriteComponent(Texture &texture);
-    SpriteComponent(Texture &texture, const glm::vec4 &color);
-    SpriteComponent(const glm::vec4 &color);
-    ~SpriteComponent();
+// enum class AxisUnit : uint8_t {
+//     Pixels, Percentage,
+//     // MinContent, MaxContent
+// };
+// struct Axis {
+//     float value;
+//     AxisUnit unit = AxisUnit::Pixels;
+
+//     Axis(float value);
+//     Axis(float value, AxisUnit unit);
+//     Axis(AxisUnit unit);
+//     ~Axis();
+// };
+
+enum class Sizing : uint8_t {
+    Fit, Grow, Constraint
+};
+class Size {
+private:
+    float constraint = 0.0f;
+    Sizing sizing = Sizing::Constraint;
+public:
+    Size();
+    Size(float value);
+    Size(Sizing sizing);
+    ~Size();
+
+    void setConstraint(float value);
+    void setSizing(Sizing sizing);
+
+    std::optional<float> getConstraint() const;
+    Sizing getSizing() const;
+};
+struct Edges {
+    float left = 0.0f;
+    float bottom = 0.0f;
+    float right = 0.0f;
+    float top = 0.0f;
+};
+
+class Color {
+private:
+    glm::u8vec4 color = glm::u8vec4(255);
+public:
+    Color();
+    Color(const glm::u8vec3 &color);
+    Color(const glm::u8vec4 &color);
+    Color(uint8_t red, uint8_t green, uint8_t blue);
+    Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha);
+    Color(uint32_t hex);
+    // TODO: Add more constructors (e.g., from HSL, HSV, etc.)
+    ~Color();
+
+    void set(const glm::u8vec3 &color);
+    void set(const glm::u8vec4 &color);
+    void set(uint8_t red, uint8_t green, uint8_t blue);
+    void set(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha);
+    void set(uint32_t hex);
+
+    const glm::u8vec4 &get() const;
+};
+
+enum class Layout : uint8_t {
+    Flex, /* Grid */
+};
+enum class LayoutDirection : uint8_t {
+    Row, Column
+};
+
+struct Texture;
+class Style {
+private:
+    enum class Property {
+        Position,
+        X, Y, Width, Height,
+        BackgroundColor, BackgroundImage,
+        Padding, Margin, Gap,
+        Layout, LayoutDirection,
+        // Width, Height, MarginTop, MarginBottom, MarginLeft, MarginRight,
+        // PaddingTop, PaddingBottom, PaddingLeft, PaddingRight,
+        // BorderTopWidth, BorderBottomWidth, BorderLeftWidth, BorderRightWidth,
+        // BorderRadiusTopLeft, BorderRadiusTopRight, BorderRadiusBottomLeft, BorderRadiusBottomRight,
+        // FlexGrow, FlexShrink, FlexBasis,
+        // JustifyContent, AlignItems, AlignSelf,
+        // PositionType, Top, Bottom, Left, Right,
+        // BackgroundColor, BorderColor
+    };
+    std::unordered_map<Property, std::variant<float, Color, Texture*, Edges, Size, Position, Layout, LayoutDirection>> properties;
+public:
+    Style();
+    ~Style();
+
+    // void setPosition(Position position);
+    void setX(float x);
+    void setY(float y);
+    void setWidth(Size width);
+    void setHeight(Size height);
+    void setBackgroundColor(Color color);
+    void setBackgroundImage(Texture &texture);
+    void setPadding(const Edges &padding);
+    void setMargin(const Edges &margin);
+    void setGap(float gap);
+    void setPosition(Position position);
+    // void setLayout(Layout layout);
+    void setLayoutDirection(LayoutDirection direction);
+
+    // TODO: Look if std::optional is even needed here
+    std::optional<float> getX() const;
+    std::optional<float> getY() const;
+    std::optional<Size> getWidth() const;
+    std::optional<Size> getHeight() const;
+    std::optional<Color> getBackgroundColor() const;
+    std::optional<Texture*> getBackgroundImage() const;
+    std::optional<Edges> getPadding() const;
+    std::optional<Edges> getMargin() const;
+    std::optional<float> getGap() const;
+    std::optional<Position> getPosition() const;
+    // std::optional<Layout> getLayout() const;
+    std::optional<LayoutDirection> getLayoutDirection() const;
+};
+
+class GuiElementComponent {
+private:
+    Style *groupStyle = nullptr;
+public:
+    Style style = Style();
+    glm::vec2 computedPosition = glm::vec2(), computedSize = glm::vec2();
+
+    GuiElementComponent();
+    explicit GuiElementComponent(Style &style);
+    ~GuiElementComponent();
+
+    void setGroupStyle(Style &style);
+    const Style *getGroupStyle() const;
 };

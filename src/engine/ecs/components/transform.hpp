@@ -9,7 +9,7 @@ struct Transform3DComponent {
     glm::vec3 scale = glm::vec3(1.0f);
 
     Transform3DComponent();
-    Transform3DComponent(const glm::vec3 &position);
+    explicit Transform3DComponent(const glm::vec3 &position);
     Transform3DComponent(const glm::vec3 &position, const glm::vec3 &rotation, const glm::vec3 &scale);
     ~Transform3DComponent();
 
@@ -22,7 +22,7 @@ struct Transform2DComponent {
     float rotation = 0.0f;
 
     Transform2DComponent();
-    Transform2DComponent(const glm::vec2 &position);
+    explicit Transform2DComponent(const glm::vec2 &position);
     Transform2DComponent(const glm::vec2 &position, float rotation, const glm::vec2 &scale);
     ~Transform2DComponent();
 

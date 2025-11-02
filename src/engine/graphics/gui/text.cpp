@@ -1,6 +1,5 @@
 #include "text.hpp"
 #include <string>
-#include <SDL3_image/SDL_image.h>
 #include <framework/util/debug.hpp>
 
 FreeType::FreeType() {
@@ -24,8 +23,8 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
         Debug::throwFatal("msdfgen::loadFont", std::string("Failed to load font: ") + filename);
         return;
     }
-    std::vector<msdf_atlas::GlyphGeometry> glyphs = std::vector<msdf_atlas::GlyphGeometry>();
-    msdf_atlas::FontGeometry geometry = msdf_atlas::FontGeometry(&glyphs);
+    std::vector<msdf_atlas::GlyphGeometry> msdfGlyphs = std::vector<msdf_atlas::GlyphGeometry>();
+    msdf_atlas::FontGeometry geometry = msdf_atlas::FontGeometry(&msdfGlyphs);
 
     // TODO: Load only ASCII charset at the start and if some text requires more characters, load them later using MSDF-Atlas-Gen's dynamic atlas system
     msdf_atlas::Charset charset = msdf_atlas::Charset();
@@ -42,7 +41,7 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
     }
 
     const double maxCornerAngle = 3.0;
-    for (msdf_atlas::GlyphGeometry &glyph : glyphs) {
+    for (msdf_atlas::GlyphGeometry &glyph : msdfGlyphs) {
         glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, maxCornerAngle, 0);
     }
     
@@ -54,7 +53,7 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
     packer.setSpacing(2);
 
     const int packerSuccess = 0;
-    if (packer.pack(glyphs.data(), glyphsLoaded) != packerSuccess) {
+    if (packer.pack(msdfGlyphs.data(), glyphsLoaded) != packerSuccess) {
         msdfgen::destroyFont(font);
         Debug::throwFatal("msdf_atlas::TightAtlasPacker::pack", std::string("Failed to pack all glyphs! Font: ") + filename);
         return;
@@ -72,7 +71,7 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
 
     generator.setAttributes(attributes);
     generator.setThreadCount(4);
-    generator.generate(glyphs.data(), glyphs.size());
+    generator.generate(msdfGlyphs.data(), msdfGlyphs.size());
 
     msdfgen::BitmapConstRef<msdfgen::byte, 3> bitmap = generator.atlasStorage();
     this->texture = Texture::fromPixels(bitmap.pixels, bitmap.width, bitmap.height, {
@@ -85,7 +84,7 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
 
     uint32_t bitmapWidth = this->texture.getWidth(), bitmapHeight = this->texture.getHeight();
 
-    for (const msdf_atlas::GlyphGeometry &glyph : glyphs) {
+    for (const msdf_atlas::GlyphGeometry &glyph : msdfGlyphs) {
         msdfgen::unicode_t unicode = glyph.getCodepoint();
 
         double boundsL = 0.0, boundsB = 0.0, boundsR = 0.0, boundsT = 0.0;

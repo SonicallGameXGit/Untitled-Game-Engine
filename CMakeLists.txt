@@ -69,6 +69,7 @@ add_executable(${PROJECT_NAME}
     src/engine/ecs/ecs.cpp
     src/engine/ecs/components/transform.cpp
     src/engine/ecs/components/mesh.cpp
+    src/engine/ecs/components/world.cpp
     src/engine/ecs/components/gui.cpp
 )
 
@@ -95,5 +96,8 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4)
 elseif(GCC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wcast-align
+    -Wnull-dereference -Wformat=2 -Wundef -Wuninitialized -Wunused
+    -Wdouble-promotion -Wuseless-cast -Wlogical-op -Wduplicated-cond
+    -Wduplicated-branches -Wmisleading-indentation)
 endif()

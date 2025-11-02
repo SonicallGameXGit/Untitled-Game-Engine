@@ -14,7 +14,18 @@ void Camera::update(const Window &window) {
     this->up = glm::vec3(rotator * glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
     this->right = glm::vec3(rotator * glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 
-    this->projectionMatrix = glm::perspective(glm::radians(this->fov), window.getHorizontalAspect(), this->zNear, this->zFar);
+    switch (this->mode) {
+        case CameraMode::PERSPECTIVE: {
+            this->projectionMatrix = glm::perspective(glm::radians(this->fov), window.getHorizontalAspect(), this->zNear, this->zFar);
+            break;
+        }
+        case CameraMode::ORTHOGRAPHIC: {
+            float horizontalSize = this->orthoSize * window.getHorizontalAspect();
+            this->projectionMatrix = glm::ortho(-horizontalSize, horizontalSize, -this->orthoSize, this->orthoSize, this->zNear, this->zFar);
+            break;
+        }
+        default: break;
+    }
     this->viewMatrix = glm::lookAt(this->position, this->position + this->front, this->up);
     this->projectionViewMatrix = this->projectionMatrix * this->viewMatrix;
 }

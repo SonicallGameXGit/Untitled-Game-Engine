@@ -15,6 +15,7 @@
 #include <engine/ecs/ecs.hpp>
 #include <engine/ecs/components/transform.hpp>
 #include <engine/ecs/components/mesh.hpp>
+#include <engine/ecs/components/world.hpp>
 #include <engine/ecs/components/gui.hpp>
 
 #include <engine/graphics/renderer.hpp>

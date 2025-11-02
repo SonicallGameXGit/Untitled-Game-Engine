@@ -40,4 +40,8 @@ public:
     auto getAllEntitiesWith() const {
         return this->registry.view<T, Other...>();
     }
+    template<typename T, typename ...Other>
+    auto getAllMutableEntitiesWith() {
+        return this->registry.view<T, Other...>();
+    }
 };

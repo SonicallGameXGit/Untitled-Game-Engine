@@ -15,7 +15,7 @@ private:
     VertexBufferUsage usage = VertexBufferUsage::Static;
     void setRawData(const void *data, uint32_t size);
 public:
-    VertexBuffer(VertexBufferUsage usage);
+    explicit VertexBuffer(VertexBufferUsage usage);
 
     template<typename T>
     VertexBuffer(const std::vector<T> &data, VertexBufferUsage usage) : VertexBuffer(usage) {

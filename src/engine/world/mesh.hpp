@@ -13,7 +13,7 @@ private:
     VertexArray vertexArray = VertexArray();
 public:
     Mesh();
-    Mesh(const std::vector<Vertex> &data);
+    explicit Mesh(const std::vector<Vertex> &data);
     ~Mesh();
 
     void setData(const std::vector<Vertex> &data);

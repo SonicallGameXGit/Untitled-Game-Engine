@@ -39,10 +39,10 @@ private:
     uint32_t id = 0, width = 0, height = 0;
 
     Texture(uint32_t id, uint32_t width, uint32_t height);
-    Texture(const Texture&) = delete;
+    explicit Texture(const Texture&) = delete;
     Texture &operator=(const Texture&) = delete;
 public:
-    Texture(Texture &&other) noexcept;
+    explicit Texture(Texture &&other) noexcept;
     Texture &operator=(Texture &&other) noexcept;
 
     struct Properties {

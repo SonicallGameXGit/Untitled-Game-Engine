@@ -12,9 +12,9 @@ struct Script {
     Script();
     virtual ~Script();
 
-    virtual void onLoad(World &world, Entity self) = 0;
-    virtual void onUpdate(const Window& window, World &world, Entity self, float deltaTime) = 0;
-    virtual void onDestroy(World &world, Entity self) = 0;
+    virtual void onLoad(World &world, Entity self);
+    virtual void onUpdate(const Window& window, World &world, Entity self, float deltaTime);
+    virtual void onDestroy(World &world, Entity self);
 };
 
 class World {
@@ -42,7 +42,7 @@ private:
         std::string name = std::string();
         std::unordered_map<std::string, Entity> children = std::unordered_map<std::string, Entity>();
 
-        NodeComponent(const std::string &name);
+        explicit NodeComponent(const std::string &name);
         NodeComponent(const std::string &name, Entity parent);
         ~NodeComponent();
     };
@@ -87,6 +87,10 @@ public:
     template<typename T, typename ...Other>
     auto getAllEntitiesWith() const {
         return this->ecs.getAllEntitiesWith<T, Other...>();
+    }
+    template<typename T, typename ...Other>
+    auto getAllMutableEntitiesWith() {
+        return this->ecs.getAllMutableEntitiesWith<T, Other...>();
     }
 
     template<typename T, typename ...Args>

@@ -8,12 +8,17 @@ Window::Window(const Window::Config &config) : width(config.width), height(confi
         return;
     }
 
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
     this->handle = SDL_CreateWindow(config.title, this->width, this->height, SDL_WINDOW_OPENGL | (config.resizable ? SDL_WINDOW_RESIZABLE : 0));
     if (this->handle == nullptr) {
         Debug::throwFatal("SDL_CreateWindow", "Failed to create window.");
         return;
     }
-
+    
     this->context = SDL_GL_CreateContext(this->handle);
     if (this->context == nullptr) {
         Debug::throwFatal("SDL_GL_CreateContext", "Failed to create GL context.");
@@ -24,6 +29,7 @@ Window::Window(const Window::Config &config) : width(config.width), height(confi
         Debug::throwFatal("gladLoadGL", "Failed to load OpenGL functions.");
         return;
     }
+    glEnable(GL_MULTISAMPLE);
 
     SDL_GL_SetSwapInterval(config.vsync);
     this->running = true;

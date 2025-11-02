@@ -15,7 +15,7 @@ public:
         bool resizable = true, vsync = false;
     };
 
-    Window(const Config& config);
+    explicit Window(const Config& config);
     ~Window();
 
     void swapBuffers() const;
