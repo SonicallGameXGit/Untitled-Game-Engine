@@ -481,14 +481,8 @@ int main() {
             gui2.style.setHeight(Sizing::Grow);
             gui2.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
             gui2.style.setLayoutDirection(LayoutDirection::Column);
+            gui2.style.setAlignY(Align::End);
             gui2.style.setGap(8.0f);
-            
-            std::optional<Entity> spacing = world.spawn("spacing", sidebar);
-            if (spacing.has_value()) {
-                GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(spacing.value());
-                gui2.style.setWidth(Sizing::Grow);
-                gui2.style.setHeight(Sizing::Grow);
-            }
 
             for (size_t i = 0; i < 8; i++) {
                 std::optional<Entity> option = world.spawn("option " + std::to_string(i), sidebar);
@@ -574,87 +568,28 @@ int main() {
             gui2.style.setHeight(Sizing::Grow);
             gui2.style.setGap(8.0f);
             gui2.style.setPadding(Edges { .right = 8.0f });
+            gui2.style.setAlignY(Align::Center);
 
-            std::optional<Entity> maximizeButtonHolder = world.spawn("maximize button", buttons);
-            if (maximizeButtonHolder.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(maximizeButtonHolder.value());
-                gui3.style.setWidth(Sizing::Fit);
-                gui3.style.setHeight(Sizing::Grow);
-                gui3.style.setLayoutDirection(LayoutDirection::Column);
-
-                std::optional<Entity> spacing1 = world.spawn("spacing1", maximizeButtonHolder);
-                if (spacing1.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(spacing1.value());
-                    gui4.style.setWidth(Sizing::Grow);
-                    gui4.style.setHeight(Sizing::Grow);
-                }
-                std::optional<Entity> maximizeButton = world.spawn("button", maximizeButtonHolder);
-                if (maximizeButton.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(maximizeButton.value());
-                    gui4.style.setBackgroundColor(0x66EE55FF);
-                    gui4.style.setWidth(16.0f);
-                    gui4.style.setHeight(16.0f);
-                }
-                std::optional<Entity> spacing2 = world.spawn("spacing2", maximizeButtonHolder);
-                if (spacing2.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(spacing2.value());
-                    gui4.style.setWidth(Sizing::Grow);
-                    gui4.style.setHeight(Sizing::Grow);
-                }
+            std::optional<Entity> maximizeButton = world.spawn("maximizeButton", buttons);
+            if (maximizeButton.has_value()) {
+                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(maximizeButton.value());
+                gui3.style.setBackgroundColor(0x66EE55FF);
+                gui3.style.setWidth(16.0f);
+                gui3.style.setHeight(16.0f);
             }
-            std::optional<Entity> minimizeButtonHolder = world.spawn("minimize button", buttons);
-            if (minimizeButtonHolder.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(minimizeButtonHolder.value());
-                gui3.style.setWidth(Sizing::Fit);
-                gui3.style.setHeight(Sizing::Grow);
-                gui3.style.setLayoutDirection(LayoutDirection::Column);
-
-                std::optional<Entity> spacing1 = world.spawn("spacing1", minimizeButtonHolder);
-                if (spacing1.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(spacing1.value());
-                    gui4.style.setWidth(Sizing::Grow);
-                    gui4.style.setHeight(Sizing::Grow);
-                }
-                std::optional<Entity> minimizeButton = world.spawn("button", minimizeButtonHolder);
-                if (minimizeButton.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(minimizeButton.value());
-                    gui4.style.setBackgroundColor(0xEECC44FF);
-                    gui4.style.setWidth(16.0f);
-                    gui4.style.setHeight(16.0f);
-                }
-                std::optional<Entity> spacing2 = world.spawn("spacing2", minimizeButtonHolder);
-                if (spacing2.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(spacing2.value());
-                    gui4.style.setWidth(Sizing::Grow);
-                    gui4.style.setHeight(Sizing::Grow);
-                }
+            std::optional<Entity> minimizeButton = world.spawn("minimizeButton", buttons);
+            if (minimizeButton.has_value()) {
+                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(minimizeButton.value());
+                gui3.style.setBackgroundColor(0xEECC44FF);
+                gui3.style.setWidth(16.0f);
+                gui3.style.setHeight(16.0f);
             }
-            std::optional<Entity> closeButtonHolder = world.spawn("close button", buttons);
-            if (closeButtonHolder.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(closeButtonHolder.value());
-                gui3.style.setWidth(Sizing::Fit);
-                gui3.style.setHeight(Sizing::Grow);
-                gui3.style.setLayoutDirection(LayoutDirection::Column);
-
-                std::optional<Entity> spacing1 = world.spawn("spacing1", closeButtonHolder);
-                if (spacing1.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(spacing1.value());
-                    gui4.style.setWidth(Sizing::Grow);
-                    gui4.style.setHeight(Sizing::Grow);
-                }
-                std::optional<Entity> closeButton = world.spawn("button", closeButtonHolder);
-                if (closeButton.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(closeButton.value());
-                    gui4.style.setBackgroundColor(0xEE5544FF);
-                    gui4.style.setWidth(16.0f);
-                    gui4.style.setHeight(16.0f);
-                }
-                std::optional<Entity> spacing2 = world.spawn("spacing2", closeButtonHolder);
-                if (spacing2.has_value()) {
-                    GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(spacing2.value());
-                    gui4.style.setWidth(Sizing::Grow);
-                    gui4.style.setHeight(Sizing::Grow);
-                }
+            std::optional<Entity> closeButton = world.spawn("closeButton", buttons);
+            if (closeButton.has_value()) {
+                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(closeButton.value());
+                gui3.style.setBackgroundColor(0xEE5544FF);
+                gui3.style.setWidth(16.0f);
+                gui3.style.setHeight(16.0f);
             }
         }
     }

@@ -72,6 +72,8 @@ void Style::setGap(float gap) { this->properties[Property::Gap] = gap; }
 void Style::setPosition(Position position) { this->properties[Property::Position] = position; }
 // void Style::setLayout(Layout layout) { this->properties[Property::Layout] = layout; }
 void Style::setLayoutDirection(LayoutDirection direction) { this->properties[Property::LayoutDirection] = direction; }
+void Style::setContentAlignX(Align align) { this->properties[Property::ContentAlignX] = align; }
+void Style::setContentAlignY(Align align) { this->properties[Property::ContentAlignY] = align; };
 
 // std::optional<Position> Style::getPosition() const { GET_PROPERTY(Position, Position); }
 std::optional<float> Style::getX() const { GET_PROPERTY(X, float); }
@@ -86,3 +88,5 @@ std::optional<float> Style::getGap() const { GET_PROPERTY(Gap, float); }
 std::optional<Position> Style::getPosition() const { GET_PROPERTY(Position, Position); }
 // std::optional<Layout> Style::getLayout() const { GET_PROPERTY(Layout, Layout); }
 std::optional<LayoutDirection> Style::getLayoutDirection() const { GET_PROPERTY(LayoutDirection, LayoutDirection); }
+std::optional<Align> Style::getContentAlignX() const { GET_PROPERTY(ContentAlignX, Align); }
+std::optional<Align> Style::getContentAlignY() const { GET_PROPERTY(ContentAlignY, Align); }

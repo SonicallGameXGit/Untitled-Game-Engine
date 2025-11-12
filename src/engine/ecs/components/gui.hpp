@@ -79,6 +79,9 @@ enum class Layout : uint8_t {
 enum class LayoutDirection : uint8_t {
     Row, Column
 };
+enum class Align : uint8_t {
+    Start, Center, End
+};
 
 struct Texture;
 class Style {
@@ -88,7 +91,7 @@ private:
         X, Y, Width, Height,
         BackgroundColor, BackgroundImage,
         Padding, Margin, Gap,
-        Layout, LayoutDirection,
+        Layout, LayoutDirection, ContentAlignX, ContentAlignY,
         // Width, Height, MarginTop, MarginBottom, MarginLeft, MarginRight,
         // PaddingTop, PaddingBottom, PaddingLeft, PaddingRight,
         // BorderTopWidth, BorderBottomWidth, BorderLeftWidth, BorderRightWidth,
@@ -98,7 +101,7 @@ private:
         // PositionType, Top, Bottom, Left, Right,
         // BackgroundColor, BorderColor
     };
-    std::unordered_map<Property, std::variant<float, Color, Texture*, Edges, Size, Position, Layout, LayoutDirection>> properties;
+    std::unordered_map<Property, std::variant<float, Color, Texture*, Edges, Size, Position, Layout, LayoutDirection, Align>> properties;
 public:
     Style();
     ~Style();
@@ -116,6 +119,8 @@ public:
     void setPosition(Position position);
     // void setLayout(Layout layout);
     void setLayoutDirection(LayoutDirection direction);
+    void setContentAlignX(Align align);
+    void setContentAlignY(Align align);
 
     // TODO: Look if std::optional is even needed here
     std::optional<float> getX() const;
@@ -130,6 +135,8 @@ public:
     std::optional<Position> getPosition() const;
     // std::optional<Layout> getLayout() const;
     std::optional<LayoutDirection> getLayoutDirection() const;
+    std::optional<Align> getContentAlignX() const;
+    std::optional<Align> getContentAlignY() const;
 };
 
 class GuiElementComponent {

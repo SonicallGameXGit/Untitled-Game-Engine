@@ -337,6 +337,17 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
         )
     );
 
+    Align myContentAlignX = element.style.getContentAlignX().value_or(
+        myGroupStyle == nullptr ? Align::Start : myGroupStyle->getContentAlignX().value_or(
+            Align::Start
+        )
+    );
+    Align myContentAlignY = element.style.getContentAlignY().value_or(
+        myGroupStyle == nullptr ? Align::Start : myGroupStyle->getContentAlignY().value_or(
+            Align::Start
+        )
+    );
+
     switch (myPosition) {
         case Position::Fixed: {
             element.computedPosition.x = element.style.getX().value_or(
@@ -378,12 +389,29 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
 
     const auto &childrenView = world.getChildren(entity);
     auto children = std::vector<std::tuple<Entity, EntityIdentifier, GuiElementComponent*>>();
+
+    float totalChildrenWidth = 0.0f, totalChildrenHeight = 0.0f;
     for (auto [_, child] : childrenView) {
         if (!world.hasComponents<GuiElementComponent>(child)) {
             continue;
         }
-        children.emplace_back(child, world.getComponent<EntityIdentifier>(child), &world.getMutableComponent<GuiElementComponent>(child));
+        GuiElementComponent *childElement = &world.getMutableComponent<GuiElementComponent>(child);
+        children.emplace_back(child, world.getComponent<EntityIdentifier>(child), childElement);
+
+        if (layoutDirection == LayoutDirection::Row) {
+            totalChildrenWidth += childElement->computedSize.x;
+            totalChildrenHeight = std::max(totalChildrenHeight, childElement->computedSize.y);
+        } else {
+            totalChildrenHeight += childElement->computedSize.y;
+            totalChildrenWidth = std::max(totalChildrenWidth, childElement->computedSize.x);
+        }
     }
+    if (layoutDirection == LayoutDirection::Row) {
+        totalChildrenWidth += myGap * static_cast<float>(std::max(0, static_cast<int32_t>(children.size()) - 1));
+    } else {
+        totalChildrenHeight += myGap * static_cast<float>(std::max(0, static_cast<int32_t>(children.size()) - 1));
+    }
+
     std::sort(children.begin(), children.end(), [](const auto &a, const auto &b) {
         return std::get<1>(a).index < std::get<1>(b).index;
     });
@@ -408,6 +436,33 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
                 childElement->computedPosition.y = offset;
             }
             childElement->computedPosition.x = element.computedPosition.x + myPadding.left;
+        }
+
+        if (childPosition == Position::Relative) {
+            switch (myContentAlignX) {
+                case Align::Start: break;
+                case Align::Center: {
+                    childElement->computedPosition.x += (element.computedSize.x - (layoutDirection == LayoutDirection::Row ? totalChildrenWidth : childElement->computedSize.x)) * 0.5f - myPadding.left - myPadding.right;
+                    break; 
+                }
+                case Align::End: {
+                    childElement->computedPosition.x += element.computedSize.x - (layoutDirection == LayoutDirection::Row ? totalChildrenWidth : childElement->computedSize.x) - myPadding.right - myPadding.left;
+                    break;
+                }
+                default: break;
+            };
+            switch (myContentAlignY) {
+                case Align::Start: break;
+                case Align::Center: {
+                    childElement->computedPosition.y += (element.computedSize.y - (layoutDirection == LayoutDirection::Row ? childElement->computedSize.y : totalChildrenHeight)) * 0.5f - myPadding.bottom - myPadding.top;
+                    break; 
+                }
+                case Align::End: {
+                    childElement->computedPosition.y += element.computedSize.y - (layoutDirection == LayoutDirection::Row ? childElement->computedSize.y : totalChildrenHeight) - myPadding.bottom - myPadding.top;
+                    break;
+                }
+                default: break;
+            };
         }
 
         positionGuiElements(world, child, *childElement);
