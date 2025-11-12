@@ -36,11 +36,14 @@ static void drawSprite(const VertexArray &vertexArray, const ShaderProgram &shad
 
     vertexArray.drawArrays(Topology::TriangleFan);
 }
-static void drawGuiElement(const VertexArray &vertexArray, const ShaderProgram &shader, const GuiElementComponent &element, const glm::mat4 &projectionViewMatrix, const glm::vec2 &position, const glm::vec2 &size) {
+static void drawGuiElement(const Window &window, const VertexArray &vertexArray, const ShaderProgram &shader, const GuiElementComponent &element, const glm::vec2 &clipPosition, const glm::vec2 &clipSize, const glm::mat4 &projectionViewMatrix) {
     const Style *groupStyle = element.getGroupStyle();
     shader.setMat4("u_ProjectionViewMatrix", projectionViewMatrix);
-    shader.setVec2("u_Position", position);
-    shader.setVec2("u_Size", size);
+    shader.setVec2("u_Resolution", glm::vec2(window.getWidth(), window.getHeight()));
+    shader.setVec2("u_Position", element.computedPosition);
+    shader.setVec2("u_Size", glm::max(element.computedSize, 0.0f));
+    shader.setVec2("u_ClipPosition", clipPosition);
+    shader.setVec2("u_ClipSize", clipSize);
 
     std::optional<Color> backgroundColor = element.style.getBackgroundColor();
     if (!backgroundColor.has_value() && groupStyle != nullptr) {
@@ -68,6 +71,37 @@ static void drawGuiElement(const VertexArray &vertexArray, const ShaderProgram &
     }
 
     vertexArray.drawArrays(Topology::TriangleFan);
+}
+static void drawGuiElements(
+    const Window &window, const World &world,
+    const Entity entity,
+    const GuiElementComponent &element,
+    const VertexArray &vertexArray,
+    const ShaderProgram &shader,
+    const glm::vec2 &clipPosition, const glm::vec2 &clipSize,
+    const glm::mat4 &projectionViewMatrix
+) {
+    drawGuiElement(window, vertexArray, shader, element, clipPosition, clipSize, projectionViewMatrix);
+    Edges myPadding = element.style.getPadding().value_or(element.getGroupStyle() == nullptr ? Edges {} : element.getGroupStyle()->getPadding().value_or(Edges {}));
+
+    glm::vec2 myClipPosition = glm::max(clipPosition, element.computedPosition);
+    glm::vec2 myClipSize = glm::min(clipSize, element.computedSize);
+
+    for (auto [_, childEntity] : world.getChildren(entity)) {
+        if (!world.hasComponents<GuiElementComponent>(childEntity)) {
+            continue;
+        }
+        const GuiElementComponent *childElement = &world.getComponent<GuiElementComponent>(childEntity);
+        drawGuiElements(
+            window, world,
+            childEntity,
+            *childElement,
+            vertexArray,
+            shader,
+            myClipPosition, myClipSize,
+            projectionViewMatrix
+        );
+    }
 }
 static void drawText(const ShaderProgram &shader, const TextComponent &text, const glm::mat4 &projectionViewMatrix, const glm::mat4 &modelMatrix) {
     const Font *font = text.getFont();
@@ -475,31 +509,8 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
 }
 
 void Renderer::render(const Window &window, World &world) const {
-    // Step -1: Precompute world & GUI matrices for all entities
-    // FIXME: Too slow / [Avg: 0.171936ms | Peak: 1.859586ms]
-    // Debug::beginTimeMeasure();
-    precomputeWorldMatrices(world, std::nullopt);
-    {
-        glm::vec2 viewport = glm::vec2(static_cast<float>(window.getWidth()), static_cast<float>(window.getHeight()));
-        for (auto [_, root] : world.getChildren(std::nullopt)) {
-            if (!world.hasComponents<GuiElementComponent>(root)) {
-                continue;
-            }
-
-            GuiElementComponent &element = world.getMutableComponent<GuiElementComponent>(root);
-            element.computedPosition.x = 0.0f;
-            element.computedPosition.y = 0.0f;
-            element.computedSize.x = 0.0f;
-            element.computedSize.y = 0.0f;
-
-            fitGuiElements(world, root, element);
-            growGuiElements(world, root, element, viewport);
-            positionGuiElements(world, root, element);
-        }
-    }
-    // Debug::endTimeMeasure();
-
     // Step 0: Initial setup for rendering
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Step 1: Draw all opaque world objects
@@ -570,38 +581,34 @@ void Renderer::render(const Window &window, World &world) const {
         }
     }
 
+    // Step 3: Precompute world & GUI matrices for all entities \
+    // Step 3.5: Draw all GUI elements (no need to sort them by depth or draw transparent ones separately because they're already sorted by spawn order)
     // Debug::beginTimeMeasure();
-    // Step 3: Draw all GUI elements (no need to sort them by depth or draw transparent ones separately because they're already sorted by spawn order)
+    precomputeWorldMatrices(world, std::nullopt);
     {
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
 
-        // EnTT doesn't guarantee that entt::entity (aka. Entity) would be the same as its creation order due to optimizations and other stuff.
-        // TODO: If possible, optimize it, because that looks cringe
-        auto entitiesView = world.getAllEntitiesWith<EntityIdentifier, GuiElementComponent>().each();
-        auto entities = std::vector<std::tuple<Entity, EntityIdentifier, const GuiElementComponent*>>();
-        entities.reserve(std::distance(entitiesView.begin(), entitiesView.end()));
-        for (auto [entity, identifier, element] : entitiesView) {
-            entities.emplace_back(entity, identifier, &element);
-        }
-        std::sort(entities.begin(), entities.end(), [](const auto &a, const auto &b) {
-            return std::get<1>(a).index < std::get<1>(b).index;
-        });
+        glm::vec2 viewport = glm::vec2(static_cast<float>(window.getWidth()), static_cast<float>(window.getHeight()));
+        glm::mat4 projectionViewMatrix = glm::ortho(0.0f, viewport.x, 0.0f, viewport.y);
+        for (auto [_, root] : world.getChildren(std::nullopt)) {
+            if (!world.hasComponents<GuiElementComponent>(root)) {
+                continue;
+            }
 
-        float width = static_cast<float>(window.getWidth()), height = static_cast<float>(window.getHeight());
-        glm::mat4 projectionViewMatrix = glm::ortho(0.0f, width, 0.0f, height);
+            GuiElementComponent &element = world.getMutableComponent<GuiElementComponent>(root);
+            element.computedPosition.x = 0.0f;
+            element.computedPosition.y = 0.0f;
+            element.computedSize.x = 0.0f;
+            element.computedSize.y = 0.0f;
 
-        for (auto [entity, identifier, element] : entities) {
-            drawGuiElement(
-                this->spriteVertexArray,
-                this->guiShader,
-                *element,
-                projectionViewMatrix,
-                element->computedPosition,
-                element->computedSize
-            );
+            fitGuiElements(world, root, element);
+            growGuiElements(world, root, element, viewport);
+            positionGuiElements(world, root, element);
+
+            drawGuiElements(window, world, root, element, this->spriteVertexArray, this->guiShader, glm::vec2(), viewport, projectionViewMatrix);
         }
-    }
+    } // FIXME: Too slow / [Avg: 0.171936ms | Peak: 1.859586ms]
     // Debug::endTimeMeasure();
 }

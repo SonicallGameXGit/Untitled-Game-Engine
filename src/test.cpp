@@ -464,7 +464,7 @@ int main() {
         gui.style.setBackgroundColor(0x222222FF);
         gui.style.setWidth(Sizing::Grow);
         gui.style.setHeight(Sizing::Grow);
-        gui.style.setMargin(Edges { .left = 8.0f, .bottom = 8.0f, .right = 796.0f, .top = 512.0f });
+        gui.style.setMargin(Edges { 32.0f, 32.0f, 32.0f, 32.0f });
         gui.style.setLayoutDirection(LayoutDirection::Column);
     }
     std::optional<Entity> body = world.spawn("body", panel);
@@ -481,7 +481,7 @@ int main() {
             gui2.style.setHeight(Sizing::Grow);
             gui2.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
             gui2.style.setLayoutDirection(LayoutDirection::Column);
-            gui2.style.setAlignY(Align::End);
+            gui2.style.setContentAlignY(Align::End);
             gui2.style.setGap(8.0f);
 
             for (size_t i = 0; i < 8; i++) {
@@ -568,7 +568,7 @@ int main() {
             gui2.style.setHeight(Sizing::Grow);
             gui2.style.setGap(8.0f);
             gui2.style.setPadding(Edges { .right = 8.0f });
-            gui2.style.setAlignY(Align::Center);
+            gui2.style.setContentAlignY(Align::Center);
 
             std::optional<Entity> maximizeButton = world.spawn("maximizeButton", buttons);
             if (maximizeButton.has_value()) {
@@ -610,7 +610,6 @@ int main() {
         window.pollEvents();
         world.update(window, dt);
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         renderer.render(window, world);
         window.swapBuffers();
     }
