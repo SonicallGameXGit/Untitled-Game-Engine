@@ -44,6 +44,7 @@ void Window::swapBuffers() const {
     SDL_GL_SwapWindow(this->handle);
 }
 void Window::pollEvents() {
+    this->viewportChanged = false;
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -55,6 +56,7 @@ void Window::pollEvents() {
                 this->width = event.window.data1;
                 this->height = event.window.data2;
                 glViewport(0, 0, this->width, this->height);
+                this->viewportChanged = true;
 
                 break;
             }
@@ -79,4 +81,7 @@ float Window::getVerticalAspect() const {
 
 bool Window::isRunning() const {
     return this->running;
+}
+bool Window::hasViewportChanged() const {
+    return this->viewportChanged;
 }

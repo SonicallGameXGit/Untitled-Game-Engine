@@ -27,6 +27,10 @@ class Font {
 private:
     Texture texture = Texture();
     std::unordered_map<wchar_t, Glyph> glyphs = std::unordered_map<wchar_t, Glyph>();
+
+    float ascender = 0.0f;
+    float descender = 0.0f;
+    float lineHeight = 0.0f;
 public:
     static constexpr float FONT_HEIGHT = 8.0f; // I don't fucking care what user thinks, 8.0 is always enough for 4.5/5 quality of the atlas and speed of generation
     static constexpr float PIXEL_RANGE = 2.0f; // Idk what it does, so I'll just keep it at 2.0f. If someone knows why tf I need to have it more or less than just 1.0f, please tell me :)
@@ -34,10 +38,13 @@ public:
     Font(const FreeType &freeType, const std::string &filename);
     ~Font();
 
-    float getTextWidth(const std::wstring &text) const;
+    glm::vec2 getTextSize(const std::wstring &text) const;
 
     const Glyph *getGlyph(wchar_t character) const;
     const Texture &getTexture() const;
+    float getAscender() const;
+    float getDescender() const;
+    float getLineHeight() const;
 };
 
 class TextMesh {

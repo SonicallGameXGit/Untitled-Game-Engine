@@ -36,14 +36,35 @@ static void drawSprite(const VertexArray &vertexArray, const ShaderProgram &shad
 
     vertexArray.drawArrays(Topology::TriangleFan);
 }
-static void drawGuiElement(const Window &window, const VertexArray &vertexArray, const ShaderProgram &shader, const GuiElementComponent &element, const glm::vec2 &clipPosition, const glm::vec2 &clipSize, const glm::mat4 &projectionViewMatrix) {
+static void drawGuiElement(
+    const VertexArray &vertexArray,
+    const ShaderProgram &guiShader, const ShaderProgram &textShader,
+    const GuiElementComponent &element,
+    const glm::vec2 &clipPosition, const glm::vec2 &clipSize,
+    const glm::vec2 &viewport,
+    const glm::mat4 &projectionViewMatrix
+) {
+    // TODO: Optimize this fucking piece of shit, period.
+    if (element.style.getPosition().value_or(element.getGroupStyle() == nullptr ? Position::Relative : element.getGroupStyle()->getPosition().value_or(Position::Relative)) == Position::Fixed) {
+        guiShader.setVec2("u_ClipPosition", glm::vec2());
+        guiShader.setVec2("u_ClipSize", viewport);
+    } else {
+        guiShader.setVec2("u_ClipPosition", clipPosition);
+        guiShader.setVec2("u_ClipSize", clipSize);
+
+        if (element.computedPosition.x + element.computedSize.x < clipPosition.x ||
+            element.computedPosition.y + element.computedSize.y < clipPosition.y ||
+            element.computedPosition.x > clipPosition.x + clipSize.x ||
+            element.computedPosition.y > clipPosition.y + clipSize.y) {
+            return;
+        }
+    }
+
     const Style *groupStyle = element.getGroupStyle();
-    shader.setMat4("u_ProjectionViewMatrix", projectionViewMatrix);
-    shader.setVec2("u_Resolution", glm::vec2(window.getWidth(), window.getHeight()));
-    shader.setVec2("u_Position", element.computedPosition);
-    shader.setVec2("u_Size", glm::max(element.computedSize, 0.0f));
-    shader.setVec2("u_ClipPosition", clipPosition);
-    shader.setVec2("u_ClipSize", clipSize);
+    guiShader.setMat4("u_ProjectionViewMatrix", projectionViewMatrix);
+    guiShader.setVec2("u_Position", glm::vec2(element.computedPosition.x, viewport.y - element.computedPosition.y - element.computedSize.y));
+    guiShader.setVec2("u_Size", glm::max(element.computedSize, 0.0f));
+    guiShader.setFloat("u_ViewportHeight", viewport.y);
 
     std::optional<Color> backgroundColor = element.style.getBackgroundColor();
     if (!backgroundColor.has_value() && groupStyle != nullptr) {
@@ -55,52 +76,47 @@ static void drawGuiElement(const Window &window, const VertexArray &vertexArray,
     if (texture == nullptr) {
         if (backgroundColor.has_value()) {
             if (backgroundColor->get().a == 0) {
-                return;
+                goto ignore;
             }
         } else {
-            return;
+            goto ignore;
         }
     }
-    shader.setVec4("u_Color", glm::vec4(backgroundColor.value_or(Color(255, 255, 255)).get()) / 255.0f);
+    guiShader.setVec4("u_Color", glm::vec4(backgroundColor.value_or(Color(255, 255, 255)).get()) / 255.0f);
 
     if (texture != nullptr) {
         texture->bind(0);
-        shader.setBool("u_HasTexture", true);
+        guiShader.setBool("u_HasTexture", true);
     } else {
-        shader.setBool("u_HasTexture", false);
+        guiShader.setBool("u_HasTexture", false);
     }
-
     vertexArray.drawArrays(Topology::TriangleFan);
-}
-static void drawGuiElements(
-    const Window &window, const World &world,
-    const Entity entity,
-    const GuiElementComponent &element,
-    const VertexArray &vertexArray,
-    const ShaderProgram &shader,
-    const glm::vec2 &clipPosition, const glm::vec2 &clipSize,
-    const glm::mat4 &projectionViewMatrix
-) {
-    drawGuiElement(window, vertexArray, shader, element, clipPosition, clipSize, projectionViewMatrix);
-    Edges myPadding = element.style.getPadding().value_or(element.getGroupStyle() == nullptr ? Edges {} : element.getGroupStyle()->getPadding().value_or(Edges {}));
 
-    glm::vec2 myClipPosition = glm::max(clipPosition, element.computedPosition);
-    glm::vec2 myClipSize = glm::min(clipSize, element.computedSize);
+    ignore:
+    const GuiElementComponent::Text *text = element.getText();
+    if (text != nullptr) {
+        if (text->font != nullptr && !text->content.empty()) {
+            glm::mat4 modelMatrix = glm::scale(
+                glm::translate(
+                    glm::mat4(1.0f),
+                    glm::vec3(text->computedPosition.x, viewport.y - text->computedPosition.y, 0.0f)
+                ),
+                glm::vec3(text->fontSize, text->fontSize, 1.0f)
+            );
+            textShader.setMat4("u_ProjectionViewMatrix", projectionViewMatrix);
+            textShader.setMat4("u_ModelMatrix", modelMatrix);
+            textShader.setFloat("u_ViewportHeight", viewport.y);
+            textShader.setVec4("u_Color", glm::vec4(
+                element.style.getTextColor().value_or(
+                    groupStyle == nullptr ? Color(0, 0, 0) : groupStyle->getTextColor().value_or(Color(0, 0, 0))
+                ).get()
+            ) / 255.0f);
+            textShader.setVec2("u_ClipPosition", clipPosition);
+            textShader.setVec2("u_ClipSize", clipSize);
 
-    for (auto [_, childEntity] : world.getChildren(entity)) {
-        if (!world.hasComponents<GuiElementComponent>(childEntity)) {
-            continue;
+            text->font->getTexture().bind(0);
+            text->textMesh.draw();
         }
-        const GuiElementComponent *childElement = &world.getComponent<GuiElementComponent>(childEntity);
-        drawGuiElements(
-            window, world,
-            childEntity,
-            *childElement,
-            vertexArray,
-            shader,
-            myClipPosition, myClipSize,
-            projectionViewMatrix
-        );
     }
 }
 static void drawText(const ShaderProgram &shader, const TextComponent &text, const glm::mat4 &projectionViewMatrix, const glm::mat4 &modelMatrix) {
@@ -164,6 +180,8 @@ static void precomputeWorldMatrices(World &world, std::optional<Entity> parent) 
 }
 
 static glm::vec2 fitGuiElements(World &world, Entity entity, GuiElementComponent &element) {
+    element.markClean();
+
     const Style *myGroupStyle = element.getGroupStyle();
     Edges myPadding = element.style.getPadding().value_or(
         myGroupStyle == nullptr ? Edges {} : myGroupStyle->getPadding().value_or(
@@ -185,15 +203,16 @@ static glm::vec2 fitGuiElements(World &world, Entity entity, GuiElementComponent
         myHeight = myGroupStyle == nullptr ? std::nullopt : myGroupStyle->getHeight();
     }
 
+    const GuiElementComponent::Text *text = element.getText();
     if (myWidth.has_value() && myWidth->getConstraint().has_value()) {
         element.computedSize.x = myWidth->getConstraint().value();
     } else {
-        element.computedSize.x = 0.0f;
+        element.computedSize.x = text == nullptr ? 0.0f : text->computedSize.x;
     }
     if (myHeight.has_value() && myHeight->getConstraint().has_value()) {
         element.computedSize.y = myHeight->getConstraint().value();
     } else {
-        element.computedSize.y = 0.0f;
+        element.computedSize.y = text == nullptr ? 0.0f : text->computedSize.y;
     }
 
     LayoutDirection layoutDirection = element.style.getLayoutDirection().value_or(
@@ -250,6 +269,8 @@ static glm::vec2 fitGuiElements(World &world, Entity entity, GuiElementComponent
     return glm::vec2(element.computedSize.x + myMargin.left + myMargin.right, element.computedSize.y + myMargin.top + myMargin.bottom);
 }
 static void growGuiElements(World &world, Entity entity, GuiElementComponent &element, const glm::vec2 &availableSpace) {
+    element.markClean();
+
     Position myPosition = element.style.getPosition().value_or(
         element.getGroupStyle() == nullptr ? Position::Relative : element.getGroupStyle()->getPosition().value_or(
             Position::Relative
@@ -352,7 +373,8 @@ static void growGuiElements(World &world, Entity entity, GuiElementComponent &el
     }
 }
 static void positionGuiElements(World &world, Entity entity, GuiElementComponent &element) {
-    // WARN: Expecting every element is a horizontal flex container
+    element.markClean();
+
     const Style *myGroupStyle = element.getGroupStyle();
     Edges myPadding = element.style.getPadding().value_or(
         myGroupStyle == nullptr ? Edges {} : myGroupStyle->getPadding().value_or(
@@ -403,7 +425,7 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
         }
         case Position::Relative: {
             element.computedPosition.x += myMargin.left;
-            element.computedPosition.y += myMargin.bottom;
+            element.computedPosition.y += myMargin.top;
             break;
         }
         default: break;
@@ -415,7 +437,7 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
         )
     );
 
-    float sourceOffset = layoutDirection == LayoutDirection::Row ? element.computedPosition.x + myPadding.left : (element.computedPosition.y + myPadding.bottom);
+    float sourceOffset = layoutDirection == LayoutDirection::Row ? element.computedPosition.x + myPadding.left : (element.computedPosition.y + myPadding.top);
     float offset = sourceOffset;
     float myGap = element.style.getGap().value_or(
         myGroupStyle == nullptr ? 0.0f : myGroupStyle->getGap().value_or(0.0f)
@@ -462,7 +484,7 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
             } else {
                 childElement->computedPosition.x = offset;
             }
-            childElement->computedPosition.y = element.computedPosition.y + myPadding.bottom;
+            childElement->computedPosition.y = element.computedPosition.y + myPadding.top;
         } else {
             if (childPosition == Position::Absolute) {
                 childElement->computedPosition.y = sourceOffset;
@@ -505,6 +527,105 @@ static void positionGuiElements(World &world, Entity entity, GuiElementComponent
         }
 
         offset += (layoutDirection == LayoutDirection::Row ? childElement->computedSize.x : childElement->computedSize.y) + myGap;
+    }
+
+    GuiElementComponent::Text *text = element.getMutableText();
+    if (text != nullptr) {
+        text->computedPosition = glm::vec2(
+            element.computedPosition.x + myPadding.left,
+            element.computedPosition.y + myPadding.top
+        );
+
+        Size myWidth = element.style.getWidth().value_or(
+            myGroupStyle == nullptr ? Size() : myGroupStyle->getWidth().value_or(Size())
+        );
+        Size myHeight = element.style.getHeight().value_or(
+            myGroupStyle == nullptr ? Size() : myGroupStyle->getHeight().value_or(Size())
+        );
+
+        if (myWidth.getSizing() != Sizing::Fit) {
+            Align myTextAlignX = element.style.getTextAlignX().value_or(
+                myGroupStyle == nullptr ? Align::Start : myGroupStyle->getTextAlignX().value_or(
+                    Align::Start
+                )
+            );
+            switch (myTextAlignX) {
+                case Align::Start: break;
+                case Align::Center: {
+                    text->computedPosition.x += (element.computedSize.x - text->computedSize.x) * 0.5f - myPadding.left - myPadding.right;
+                    break;
+                }
+                case Align::End: {
+                    text->computedPosition.x += element.computedSize.x - text->computedSize.x - myPadding.right - myPadding.left;
+                    break;
+                }
+                default: break;
+            };
+        }
+        if (myHeight.getSizing() != Sizing::Fit) {
+            Align myTextAlignY = element.style.getTextAlignY().value_or(
+                myGroupStyle == nullptr ? Align::Start : myGroupStyle->getTextAlignY().value_or(
+                    Align::Start
+                )
+            );
+            switch (myTextAlignY) {
+                case Align::Start: break;
+                case Align::Center: {
+                    text->computedPosition.y += (element.computedSize.y - text->computedSize.y) * 0.5f - myPadding.bottom - myPadding.top;
+                    break; 
+                }
+                case Align::End: {
+                    text->computedPosition.y += element.computedSize.y - text->computedSize.y - myPadding.bottom - myPadding.top;
+                    break;
+                }
+                default: break;
+            };
+        }
+    }
+}
+static void drawGuiElements(
+    World &world,
+    const Entity entity,
+    GuiElementComponent &element,
+    const VertexArray &vertexArray,
+    const ShaderProgram &guiShader, const ShaderProgram &textShader,
+    const glm::vec2 &clipPosition, const glm::vec2 &clipSize,
+    const glm::vec2 &viewport,
+    const glm::mat4 &projectionViewMatrix
+) {
+    if (element.isDirty()) {
+        element.markClean();
+        fitGuiElements(world, entity, element);
+        growGuiElements(world, entity, element, clipSize);
+
+        std::optional<Entity> parent = world.getParent(entity);
+        if (parent.has_value() && world.hasComponents<GuiElementComponent>(parent.value())) {
+            positionGuiElements(world, parent.value(), world.getMutableComponent<GuiElementComponent>(parent.value()));
+        } else {
+            positionGuiElements(world, entity, element);
+        }
+    }
+
+    drawGuiElement(vertexArray, guiShader, textShader, element, clipPosition, clipSize, viewport, projectionViewMatrix);
+    Edges myPadding = element.style.getPadding().value_or(element.getGroupStyle() == nullptr ? Edges {} : element.getGroupStyle()->getPadding().value_or(Edges {}));
+
+    glm::vec2 myClipPosition = glm::max(clipPosition, element.computedPosition);
+    glm::vec2 myClipSize = glm::min(clipSize, element.computedSize);
+
+    for (auto [_, childEntity] : world.getChildren(entity)) {
+        if (!world.hasComponents<GuiElementComponent>(childEntity)) {
+            continue;
+        }
+        drawGuiElements(
+            world,
+            childEntity,
+            world.getMutableComponent<GuiElementComponent>(childEntity),
+            vertexArray,
+            guiShader, textShader,
+            myClipPosition, myClipSize,
+            viewport,
+            projectionViewMatrix
+        );
     }
 }
 
@@ -598,16 +719,19 @@ void Renderer::render(const Window &window, World &world) const {
             }
 
             GuiElementComponent &element = world.getMutableComponent<GuiElementComponent>(root);
-            element.computedPosition.x = 0.0f;
-            element.computedPosition.y = 0.0f;
-            element.computedSize.x = 0.0f;
-            element.computedSize.y = 0.0f;
+            if (element.isDirty() || window.hasViewportChanged()) {
+                element.markClean();
+                element.computedPosition.x = 0.0f;
+                element.computedPosition.y = 0.0f;
+                element.computedSize.x = 0.0f;
+                element.computedSize.y = 0.0f;
+    
+                fitGuiElements(world, root, element);
+                growGuiElements(world, root, element, viewport);
+                positionGuiElements(world, root, element);
+            }
 
-            fitGuiElements(world, root, element);
-            growGuiElements(world, root, element, viewport);
-            positionGuiElements(world, root, element);
-
-            drawGuiElements(window, world, root, element, this->spriteVertexArray, this->guiShader, glm::vec2(), viewport, projectionViewMatrix);
+            drawGuiElements(world, root, element, this->spriteVertexArray, this->guiShader, this->textShader, glm::vec2(), viewport, viewport, projectionViewMatrix);
         }
     } // FIXME: Too slow / [Avg: 0.171936ms | Peak: 1.859586ms]
     // Debug::endTimeMeasure();

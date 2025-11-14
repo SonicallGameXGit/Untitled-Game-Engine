@@ -176,20 +176,18 @@ struct FpsCounterScript : public Script {
         this->fpsTimer += deltaTime;
         this->fps++;
         if (this->fpsTimer >= 1.0f) {
-            // TextComponent &fpsText = world.getMutableComponent<TextComponent>(self);
-            // fpsText.setText(L"FPS: " + std::to_wstring(this->fps));
+            GuiElementComponent &fpsText = world.getMutableComponent<GuiElementComponent>(self);
+            fpsText.setText(L"FPS: " + std::to_wstring(this->fps));
 
-            // if (this->fps < 15) {
-            //     fpsText.color = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-            // } else if (this->fps < 60) {
-            //     fpsText.color = glm::vec4(1.0f, 1.0f, 0.0f, 1.0f);
-            // } else if (this->fps < 144) {
-            //     fpsText.color = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
-            // } else {
-            //     fpsText.color = glm::vec4(1.0f);
-            // }
-
-            printf("FPS: %u\n", this->fps);
+            if (this->fps < 15) {
+                fpsText.style.setTextColor(0xFF0000FF);
+            } else if (this->fps < 60) {
+                fpsText.style.setTextColor(0xFFFF00FF);
+            } else if (this->fps < 144) {
+                fpsText.style.setTextColor(0x00FF00FF);
+            } else {
+                fpsText.style.setTextColor(0xFFFFFFFF);
+            }
 
             this->fps = 0;
             this->fpsTimer -= 1.0f;
@@ -206,7 +204,7 @@ struct TextScript : public Script {
     void onUpdate(const Window&, World& world, Entity self, float) override {
         const TextComponent &textComponent = world.getComponent<TextComponent>(self);
         Transform2DComponent &transform = world.getMutableComponent<Transform2DComponent>(self);
-        transform.position.x = -textComponent.getFont()->getTextWidth(textComponent.getText()) * 0.5f * transform.scale.x;
+        // transform.position.x = -textComponent.getFont()->getTextWidth(textComponent.getText()) * 0.5f * transform.scale.x;
         transform.position.y = -0.95f + transform.scale.y;
     }
     void onDestroy(World&, Entity) override {
@@ -233,6 +231,68 @@ class PanelScript : public Script {
         }
     }
 };
+
+static void spawnSidebarTree(World &world, std::optional<Entity> parent, std::optional<Entity> sidebar, Font &font, Texture &objectTexture, Texture &downArrowIcon, float depth) {
+    auto children = world.getChildren(parent);
+    auto sortedChildren = std::vector<std::tuple<Entity, EntityIdentifier>>();
+    sortedChildren.reserve(std::distance(children.begin(), children.end()));
+    for (auto [_, entity] : children) {
+        sortedChildren.emplace_back(entity, world.getComponent<EntityIdentifier>(entity));
+    }
+    std::sort(sortedChildren.begin(), sortedChildren.end(), [](const auto& a, const auto& b) {
+        return std::get<1>(a).index < std::get<1>(b).index;
+    });
+
+    size_t numItems = 0;
+    for (auto [entity, _] : sortedChildren) {
+        if (numItems++ > 32) {
+            break;
+        }
+
+        std::optional<Entity> child = world.spawn("Child " + std::to_string(static_cast<uint32_t>(entity)), sidebar);
+        if (child.has_value()) {
+            GuiElementComponent &gui = world.addComponent<GuiElementComponent>(child.value());
+            gui.style.setWidth(Sizing::Grow);
+            gui.style.setHeight(Sizing::Fit);
+            gui.style.setPadding(Edges { .left = 4.0f, .bottom = 2.0f, .right = 4.0f, .top = 2.0f });
+            gui.style.setMargin(Edges { .left = depth * 24.0f, .bottom = 0.0f, .right = 0.0f, .top = 0.0f });
+            gui.style.setContentAlignY(Align::Center);
+            gui.style.setGap(4.0f);
+
+            std::optional<Entity> iconEntity = world.spawn("Icon", child);
+            if (iconEntity.has_value()) {
+                GuiElementComponent &iconGui = world.addComponent<GuiElementComponent>(iconEntity.value());
+                iconGui.style.setWidth(24.0f);
+                iconGui.style.setHeight(24.0f);
+                iconGui.style.setBackgroundImage(objectTexture);
+            }
+            std::optional<Entity> titleEntity = world.spawn("Title", child);
+            if (titleEntity.has_value()) {
+                GuiElementComponent &titleGui = world.addComponent<GuiElementComponent>(titleEntity.value());
+                titleGui.style.setWidth(Sizing::Grow);
+                titleGui.style.setHeight(Sizing::Fit);
+
+                titleGui.setFont(font);
+                titleGui.setFontSize(24.0f);
+
+                const std::string &name = world.getName(entity);
+                titleGui.setText(std::wstring(name.begin(), name.end()));
+                titleGui.style.setTextColor(0xFFFFFFFF);
+            }
+            if (!world.getChildren(entity).empty()) {
+                std::optional<Entity> expandIconEntity = world.spawn("Expand Icon", child);
+                if (expandIconEntity.has_value()) {
+                    GuiElementComponent &expandIconGui = world.addComponent<GuiElementComponent>(expandIconEntity.value());
+                    expandIconGui.style.setWidth(24.0f);
+                    expandIconGui.style.setHeight(24.0f);
+                    expandIconGui.style.setBackgroundImage(downArrowIcon);
+                }
+            }
+        }
+
+        spawnSidebarTree(world, entity, sidebar, font, objectTexture, downArrowIcon, depth + 1.0f);
+    }
+}
 
 int main() {
     if (hasCriticalErrors()) return 1;
@@ -386,10 +446,20 @@ int main() {
         .format = TextureFormat::RGBA,
         .type = TextureType::UnsignedByte,
     });
+    Texture objectTexture = Texture::fromFile(ASSETS_DIR "/img/object.png", {
+        .internalFormat = TextureInternalFormat::RGBA8,
+        .format = TextureFormat::RGBA,
+        .type = TextureType::UnsignedByte,
+    });
+    Texture downArrowIcon = Texture::fromFile(ASSETS_DIR "/img/down_arrow.png", {
+        .internalFormat = TextureInternalFormat::RGBA8,
+        .format = TextureFormat::RGBA,
+        .type = TextureType::UnsignedByte,
+    });
 
     printf("Loading fonts...\n");
     FreeType freeType = FreeType();
-    // Font notoSansFont = Font(freeType, ASSETS_DIR "/fonts/NotoSans-VariableFont_wdth,wght.ttf");
+    Font notoSansFont = Font(freeType, ASSETS_DIR "/fonts/NotoSans-VariableFont_wdth,wght.ttf");
     printf("Fonts loaded!\n");
 
     std::optional<Entity> room = world.spawn("Room", std::nullopt);
@@ -398,204 +468,114 @@ int main() {
         world.addComponent<Transform3DComponent>(room.value(), glm::vec3(), glm::vec3(0.0f, -90.0f, 0.0f), MyScript::ROOM_SIZE * 2.0f + 1.0f);
     }
 
-    for (size_t i = 0; i < 500; i++) {
-        std::optional<Entity> seryoha = world.spawn("Seryoha " + std::to_string(i), std::nullopt);
-        if (seryoha.has_value()) {
-            constexpr glm::vec4 brown = glm::vec4(0.55f, 0.27f, 0.07f, 1.0f);
-            constexpr glm::vec4 vanilla = glm::vec4(1.0f, 0.91f, 0.71f, 1.0f);
-            constexpr glm::vec4 warm = glm::vec4(1.0f, 0.8f, 0.6f, 1.0f);
+    std::optional<Entity> seryohas = world.spawn("Seryohas", std::nullopt);
+    if (seryohas.has_value()) {
+        for (size_t i = 0; i < 500; i++) {
+            std::optional<Entity> seryoha = world.spawn("Seryoha " + std::to_string(i), seryohas);
+            if (seryoha.has_value()) {
+                constexpr glm::vec4 brown = glm::vec4(0.55f, 0.27f, 0.07f, 1.0f);
+                constexpr glm::vec4 vanilla = glm::vec4(1.0f, 0.91f, 0.71f, 1.0f);
+                constexpr glm::vec4 warm = glm::vec4(1.0f, 0.8f, 0.6f, 1.0f);
 
-            // choose random number from 0.0f to 2.0f and mix colors accordingly
-            float colorChoice = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 2.0f;
-            glm::vec4 color = glm::vec4();
-            if (colorChoice < 1.0f) {
-                color = glm::mix(brown, vanilla, colorChoice);
-            } else {
-                color = glm::mix(vanilla, warm, colorChoice - 1.0f);
-            }
+                // choose random number from 0.0f to 2.0f and mix colors accordingly
+                float colorChoice = (static_cast<float>(rand()) / static_cast<float>(RAND_MAX)) * 2.0f;
+                glm::vec4 color = glm::vec4();
+                if (colorChoice < 1.0f) {
+                    color = glm::mix(brown, vanilla, colorChoice);
+                } else {
+                    color = glm::mix(vanilla, warm, colorChoice - 1.0f);
+                }
 
-            std::optional<Entity> body = world.spawn("Body", seryoha);
-            if (body.has_value()) {
-                world.addComponent<MeshComponent>(body.value(), mesh, color);
-                world.addComponent<Transform3DComponent>(body.value(), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(), glm::vec3(1.0f, 1.0f, 0.5f));
-            }
-            world.addComponent<Transform3DComponent>(seryoha.value());
-            world.setScript<MyScript>(seryoha.value(), rand() % 10 == 0);
+                std::optional<Entity> body = world.spawn("Body", seryoha);
+                if (body.has_value()) {
+                    world.addComponent<MeshComponent>(body.value(), mesh, color);
+                    world.addComponent<Transform3DComponent>(body.value(), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(), glm::vec3(1.0f, 1.0f, 0.5f));
+                }
+                world.addComponent<Transform3DComponent>(seryoha.value());
+                world.setScript<MyScript>(seryoha.value(), rand() % 10 == 0);
 
-            std::optional<Entity> leftHand = world.spawn("Left Hand", seryoha);
-            if (leftHand.has_value()) {
-                world.addComponent<MeshComponent>(leftHand.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-                world.addComponent<Transform3DComponent>(leftHand.value(), glm::vec3(-0.65f, 1.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 0.7f, 0.3f));
-            }
-            std::optional<Entity> rightHand = world.spawn("Right Hand", seryoha);
-            if (rightHand.has_value()) {
-                world.addComponent<MeshComponent>(rightHand.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-                world.addComponent<Transform3DComponent>(rightHand.value(), glm::vec3(0.65f, 1.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 0.7f, 0.3f));
-            }
-            std::optional<Entity> leftLeg = world.spawn("Left Leg", seryoha);
-            if (leftLeg.has_value()) {
-                world.addComponent<MeshComponent>(leftLeg.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-                world.addComponent<Transform3DComponent>(leftLeg.value(), glm::vec3(-0.3f, 0.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 1.0f, 0.3f));
-            }
-            std::optional<Entity> rightLeg = world.spawn("Right Leg", seryoha);
-            if (rightLeg.has_value()) {
-                world.addComponent<MeshComponent>(rightLeg.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
-                world.addComponent<Transform3DComponent>(rightLeg.value(), glm::vec3(0.3f, 0.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 1.0f, 0.3f));
-            }
-            std::optional<Entity> head = world.spawn("Head", seryoha);
-            if (head.has_value()) {
-                world.addComponent<MeshComponent>(head.value(), frontFaceMesh, seryohaTexture);
-                world.addComponent<Transform3DComponent>(head.value(), glm::vec3(0.0f, 1.75f, 0.0f), glm::vec3(), glm::vec3(0.5f, 0.5f, 0.5f));
+                std::optional<Entity> leftHand = world.spawn("Left Hand", seryoha);
+                if (leftHand.has_value()) {
+                    world.addComponent<MeshComponent>(leftHand.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+                    world.addComponent<Transform3DComponent>(leftHand.value(), glm::vec3(-0.65f, 1.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 0.7f, 0.3f));
+                }
+                std::optional<Entity> rightHand = world.spawn("Right Hand", seryoha);
+                if (rightHand.has_value()) {
+                    world.addComponent<MeshComponent>(rightHand.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+                    world.addComponent<Transform3DComponent>(rightHand.value(), glm::vec3(0.65f, 1.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 0.7f, 0.3f));
+                }
+                std::optional<Entity> leftLeg = world.spawn("Left Leg", seryoha);
+                if (leftLeg.has_value()) {
+                    world.addComponent<MeshComponent>(leftLeg.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+                    world.addComponent<Transform3DComponent>(leftLeg.value(), glm::vec3(-0.3f, 0.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 1.0f, 0.3f));
+                }
+                std::optional<Entity> rightLeg = world.spawn("Right Leg", seryoha);
+                if (rightLeg.has_value()) {
+                    world.addComponent<MeshComponent>(rightLeg.value(), mesh, color * glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+                    world.addComponent<Transform3DComponent>(rightLeg.value(), glm::vec3(0.3f, 0.0f, 0.0f), glm::vec3(), glm::vec3(0.3f, 1.0f, 0.3f));
+                }
+                std::optional<Entity> head = world.spawn("Head", seryoha);
+                if (head.has_value()) {
+                    world.addComponent<MeshComponent>(head.value(), frontFaceMesh, seryohaTexture);
+                    world.addComponent<Transform3DComponent>(head.value(), glm::vec3(0.0f, 1.75f, 0.0f), glm::vec3(), glm::vec3(0.5f, 0.5f, 0.5f));
+                }
             }
         }
-    }
-
-    std::optional<Entity> fpsTextEntity = world.spawn("FPS Text", std::nullopt);
-    if (fpsTextEntity.has_value()) {
-        // TextComponent &textComponent = world.addComponent<TextComponent>(fpsTextEntity.value(), notoSansFont, L"FPS: 0", glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-        // textComponent.textHeight = 32.0f;
-        // world.addComponent<CanvasTransformComponent>(fpsTextEntity.value());
-        world.setScript<FpsCounterScript>(fpsTextEntity.value());
     }
 
     std::optional<Entity> panel = world.spawn("Panel", std::nullopt);
     if (panel.has_value()) {
         GuiElementComponent &gui = world.addComponent<GuiElementComponent>(panel.value());
-        gui.style.setBackgroundColor(0x222222FF);
         gui.style.setWidth(Sizing::Grow);
         gui.style.setHeight(Sizing::Grow);
-        gui.style.setMargin(Edges { 32.0f, 32.0f, 32.0f, 32.0f });
-        gui.style.setLayoutDirection(LayoutDirection::Column);
     }
-    std::optional<Entity> body = world.spawn("body", panel);
-    if (body.has_value()) {
-        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(body.value());
-        gui.style.setWidth(Sizing::Grow);
+
+    std::optional<Entity> horizontalLayout = world.spawn("Horizontal Layout", panel);
+    if (horizontalLayout.has_value()) {
+        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(horizontalLayout.value());
         gui.style.setHeight(Sizing::Grow);
 
-        std::optional<Entity> sidebar = world.spawn("sidebar", body);
+        std::optional<Entity> sidebar = world.spawn("Sidebar", horizontalLayout);
         if (sidebar.has_value()) {
-            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(sidebar.value());
-            gui2.style.setBackgroundColor(0x444444FF);
-            gui2.style.setWidth(200.0f);
-            gui2.style.setHeight(Sizing::Grow);
-            gui2.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
-            gui2.style.setLayoutDirection(LayoutDirection::Column);
-            gui2.style.setContentAlignY(Align::End);
-            gui2.style.setGap(8.0f);
-
-            for (size_t i = 0; i < 8; i++) {
-                std::optional<Entity> option = world.spawn("option " + std::to_string(i), sidebar);
-                if (option.has_value()) {
-                    GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(option.value());
-                    gui3.style.setBackgroundColor(0x666666FF);
-                    gui3.style.setWidth(static_cast<float>(rand() % 100) + 64.0f);
-                    gui3.style.setHeight(32.0f);
-                }
-            }
-        }
-        
-        std::optional<Entity> content = world.spawn("content", body);
-        if (content.has_value()) {
-            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(content.value());
-            gui2.style.setWidth(Sizing::Grow);
-            gui2.style.setHeight(Sizing::Grow);
-            gui2.style.setMargin(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
-
-            std::optional<Entity> graphsRows = world.spawn("graphs rows", content);
-            if (graphsRows.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(graphsRows.value());
-                gui3.style.setWidth(Sizing::Grow);
-                gui3.style.setHeight(Sizing::Grow);
-                gui3.style.setLayoutDirection(LayoutDirection::Column);
-                gui3.style.setGap(8.0f);
-
-                for (size_t i = 0; i < 2; i++) {
-                    std::optional<Entity> graphRow = world.spawn("graph row " + std::to_string(i), graphsRows);
-                    if (graphRow.has_value()) {
-                        GuiElementComponent &gui4 = world.addComponent<GuiElementComponent>(graphRow.value());
-                        gui4.style.setWidth(Sizing::Grow);
-                        gui4.style.setHeight(Sizing::Grow);
-                        gui4.style.setLayoutDirection(LayoutDirection::Row);
-                        gui4.style.setGap(8.0f);
-
-                        for (size_t j = 0; j < 3; j++) {
-                            std::optional<Entity> graph = world.spawn("graph " + std::to_string(j), graphRow);
-                            if (graph.has_value()) {
-                                GuiElementComponent &gui5 = world.addComponent<GuiElementComponent>(graph.value());
-                                gui5.style.setBackgroundColor(0x555555FF);
-                                gui5.style.setWidth(Sizing::Grow);
-                                gui5.style.setHeight(Sizing::Grow);
-                            }
-                        }
-                        std::optional<Entity> graph = world.spawn("graph 3", graphRow);
-                        if (graph.has_value()) {
-                            GuiElementComponent &gui5 = world.addComponent<GuiElementComponent>(graph.value());
-                            gui5.style.setBackgroundColor(0x555555FF);
-                            gui5.style.setWidth(256.0f);
-                            gui5.style.setHeight(Sizing::Grow);
-                        }
-                    }
-                }
-            }
+            GuiElementComponent &gui = world.addComponent<GuiElementComponent>(sidebar.value());
+            gui.style.setWidth(318.0f);
+            gui.style.setHeight(Sizing::Grow);
+            gui.style.setBackgroundColor(0x333333FF);
+            gui.style.setPadding(Edges { 4.0f, 4.0f, 4.0f, 4.0f });
+            gui.style.setLayoutDirection(LayoutDirection::Column);
+            gui.style.setGap(4.0f);
         }
     }
 
-    std::optional<Entity> titlebar = world.spawn("Titlebar", panel);
-    if (titlebar.has_value()) {
-        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(titlebar.value());
-        gui.style.setBackgroundColor(0x333333FF);
+    std::optional<Entity> fpsContainer = world.spawn("FPS Text Container", std::nullopt);
+    if (fpsContainer.has_value()) {
+        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(fpsContainer.value());
         gui.style.setWidth(Sizing::Grow);
+        gui.style.setHeight(Sizing::Grow);
         gui.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
+        gui.style.setContentAlignX(Align::End);
 
-        std::optional<Entity> icon = world.spawn("icon", titlebar);
-        if (icon.has_value()) {
-            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(icon.value());
-            gui2.style.setBackgroundImage(svoTexture);
-            gui2.style.setWidth(48.0f);
-            gui2.style.setHeight(48.0f);
-        }
-        std::optional<Entity> spacing = world.spawn("spacing", titlebar);
-        if (spacing.has_value()) {
-            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(spacing.value());
-            gui2.style.setWidth(Sizing::Grow);
-            gui2.style.setHeight(Sizing::Grow);
-        }
-        std::optional<Entity> buttons = world.spawn("buttons", titlebar);
-        if (buttons.has_value()) {
-            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(buttons.value());
+        std::optional<Entity> fps = world.spawn("FPS Text", fpsContainer);
+        if (fps.has_value()) {
+            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(fps.value());
             gui2.style.setWidth(Sizing::Fit);
-            gui2.style.setHeight(Sizing::Grow);
-            gui2.style.setGap(8.0f);
-            gui2.style.setPadding(Edges { .right = 8.0f });
-            gui2.style.setContentAlignY(Align::Center);
-
-            std::optional<Entity> maximizeButton = world.spawn("maximizeButton", buttons);
-            if (maximizeButton.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(maximizeButton.value());
-                gui3.style.setBackgroundColor(0x66EE55FF);
-                gui3.style.setWidth(16.0f);
-                gui3.style.setHeight(16.0f);
-            }
-            std::optional<Entity> minimizeButton = world.spawn("minimizeButton", buttons);
-            if (minimizeButton.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(minimizeButton.value());
-                gui3.style.setBackgroundColor(0xEECC44FF);
-                gui3.style.setWidth(16.0f);
-                gui3.style.setHeight(16.0f);
-            }
-            std::optional<Entity> closeButton = world.spawn("closeButton", buttons);
-            if (closeButton.has_value()) {
-                GuiElementComponent &gui3 = world.addComponent<GuiElementComponent>(closeButton.value());
-                gui3.style.setBackgroundColor(0xEE5544FF);
-                gui3.style.setWidth(16.0f);
-                gui3.style.setHeight(16.0f);
-            }
+            gui2.style.setHeight(Sizing::Fit);
+            gui2.style.setPadding(Edges { .left = 8.0f, .bottom = 4.0f, .right = 8.0f, .top = 4.0f });
+            gui2.style.setBackgroundColor(0x00000080);
+            gui2.style.setTextColor(0xFFFFFFFF);
+            gui2.setFont(notoSansFont);
+            gui2.setFontSize(24.0f);
+            world.setScript<FpsCounterScript>(fps.value());
         }
+    }
+
+    std::optional<Entity> sidebar = world.find("Sidebar", horizontalLayout);
+    if (sidebar.has_value()) {
+        size_t numItems = 0;
+        spawnSidebarTree(world, std::nullopt, sidebar, notoSansFont, objectTexture, downArrowIcon, 0.0f);
     }
 
     float zoomTime = 0.0f;
-
     uint64_t lastTime = SDL_GetTicksNS();
     while (window.isRunning()) {
         uint64_t currentTime = SDL_GetTicksNS();

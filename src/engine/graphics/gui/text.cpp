@@ -40,6 +40,12 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
         return;
     }
 
+    // Extract font metrics normalized to font height | Thanks Claude!
+    const msdfgen::FontMetrics &metrics = geometry.getMetrics();
+    this->ascender = static_cast<float>(metrics.ascenderY / Font::FONT_HEIGHT);
+    this->descender = static_cast<float>(metrics.descenderY / Font::FONT_HEIGHT);
+    this->lineHeight = static_cast<float>(metrics.lineHeight / Font::FONT_HEIGHT);
+
     const double maxCornerAngle = 3.0;
     for (msdf_atlas::GlyphGeometry &glyph : msdfGlyphs) {
         glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, maxCornerAngle, 0);
@@ -114,13 +120,15 @@ Font::Font(const FreeType &freeType, const std::string &filename) {
 }
 Font::~Font() {}
 
-float Font::getTextWidth(const std::wstring &text) const {
+glm::vec2 Font::getTextSize(const std::wstring &text) const {
     float maxWidth = 0.0f, width = 0.0f;
+    int numLines = text.empty() ? 0 : 1;
 
     for (wchar_t character : text) {
         if (character == L'\n') {
             maxWidth = std::max(maxWidth, width);
             width = 0.0f;
+            numLines += 1;
             continue;
         }
 
@@ -131,7 +139,11 @@ float Font::getTextWidth(const std::wstring &text) const {
     }
 
     maxWidth = std::max(maxWidth, width);
-    return maxWidth;
+
+    // Calculate height: first line uses (ascender - descender), additional lines use lineHeight | Thanks Claude!
+    float height = numLines > 0 ? (this->ascender - this->descender) + (numLines - 1) * this->lineHeight : 0.0f;
+
+    return glm::vec2(maxWidth, height);
 }
 
 const Glyph *Font::getGlyph(wchar_t character) const {
@@ -144,6 +156,15 @@ const Glyph *Font::getGlyph(wchar_t character) const {
 }
 const Texture &Font::getTexture() const {
     return this->texture;
+}
+float Font::getAscender() const {
+    return this->ascender;
+}
+float Font::getDescender() const {
+    return this->descender;
+}
+float Font::getLineHeight() const {
+    return this->lineHeight;
 }
 
 TextMesh::TextMesh() {
@@ -183,11 +204,12 @@ void TextMesh::setText(const std::wstring &text, const Font &font) {
     std::vector<TextInstance> instances = std::vector<TextInstance>();
     instances.reserve(text.size());
 
-    float penX = 0.0f, penY = -1.0f;
+    // Start pen at -ascender so the top of the text aligns to y=0 | Thanks Claude!
+    float penX = 0.0f, penY = -font.getAscender();
     for (wchar_t character : text) {
         if (character == L'\n') {
             penX = 0.0f;
-            penY -= 1.0f;
+            penY -= font.getLineHeight();
 
             continue;
         }

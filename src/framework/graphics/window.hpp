@@ -7,7 +7,7 @@ private:
     SDL_GLContext context = {};
 
     int width = 0, height = 0;
-    bool running = false;
+    bool running = false, viewportChanged = false;
 public:
     struct Config {
         const char *title = "Window";
@@ -28,4 +28,5 @@ public:
     float getVerticalAspect() const;
     
     bool isRunning() const;
+    bool hasViewportChanged() const;
 };

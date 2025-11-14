@@ -4,26 +4,14 @@
 #include <glm/glm.hpp>
 #include <variant>
 #include <optional>
+#include <string>
+#include <engine/graphics/gui/text.hpp>
 
 enum class Position : uint8_t {
     Fixed, // Place exactly at (x, y)
     Absolute, // Place exactly at (x, y) relative to parent
     Relative // Give parent full control over placement
 };
-
-// enum class AxisUnit : uint8_t {
-//     Pixels, Percentage,
-//     // MinContent, MaxContent
-// };
-// struct Axis {
-//     float value;
-//     AxisUnit unit = AxisUnit::Pixels;
-
-//     Axis(float value);
-//     Axis(float value, AxisUnit unit);
-//     Axis(AxisUnit unit);
-//     ~Axis();
-// };
 
 enum class Sizing : uint8_t {
     Fit, Grow, Constraint
@@ -58,6 +46,8 @@ public:
     Color();
     Color(const glm::u8vec3 &color);
     Color(const glm::u8vec4 &color);
+    Color(const glm::vec3 &color);
+    Color(const glm::vec4 &color);
     Color(uint8_t red, uint8_t green, uint8_t blue);
     Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha);
     Color(uint32_t hex);
@@ -66,6 +56,8 @@ public:
 
     void set(const glm::u8vec3 &color);
     void set(const glm::u8vec4 &color);
+    void set(const glm::vec3 &color);
+    void set(const glm::vec4 &color);
     void set(uint8_t red, uint8_t green, uint8_t blue);
     void set(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha);
     void set(uint32_t hex);
@@ -89,17 +81,11 @@ private:
     enum class Property {
         Position,
         X, Y, Width, Height,
-        BackgroundColor, BackgroundImage,
+        TextColor, BackgroundColor, BackgroundImage,
         Padding, Margin, Gap,
-        Layout, LayoutDirection, ContentAlignX, ContentAlignY,
-        // Width, Height, MarginTop, MarginBottom, MarginLeft, MarginRight,
-        // PaddingTop, PaddingBottom, PaddingLeft, PaddingRight,
-        // BorderTopWidth, BorderBottomWidth, BorderLeftWidth, BorderRightWidth,
-        // BorderRadiusTopLeft, BorderRadiusTopRight, BorderRadiusBottomLeft, BorderRadiusBottomRight,
-        // FlexGrow, FlexShrink, FlexBasis,
-        // JustifyContent, AlignItems, AlignSelf,
-        // PositionType, Top, Bottom, Left, Right,
-        // BackgroundColor, BorderColor
+        Layout, LayoutDirection,
+        ContentAlignX, ContentAlignY,
+        TextAlignX, TextAlignY,
     };
     std::unordered_map<Property, std::variant<float, Color, Texture*, Edges, Size, Position, Layout, LayoutDirection, Align>> properties;
 public:
@@ -112,6 +98,7 @@ public:
     void setWidth(Size width);
     void setHeight(Size height);
     void setBackgroundColor(Color color);
+    void setTextColor(Color color);
     void setBackgroundImage(Texture &texture);
     void setPadding(const Edges &padding);
     void setMargin(const Edges &margin);
@@ -121,6 +108,8 @@ public:
     void setLayoutDirection(LayoutDirection direction);
     void setContentAlignX(Align align);
     void setContentAlignY(Align align);
+    void setTextAlignX(Align align);
+    void setTextAlignY(Align align);
 
     // TODO: Look if std::optional is even needed here
     std::optional<float> getX() const;
@@ -128,6 +117,7 @@ public:
     std::optional<Size> getWidth() const;
     std::optional<Size> getHeight() const;
     std::optional<Color> getBackgroundColor() const;
+    std::optional<Color> getTextColor() const;
     std::optional<Texture*> getBackgroundImage() const;
     std::optional<Edges> getPadding() const;
     std::optional<Edges> getMargin() const;
@@ -137,11 +127,24 @@ public:
     std::optional<LayoutDirection> getLayoutDirection() const;
     std::optional<Align> getContentAlignX() const;
     std::optional<Align> getContentAlignY() const;
+    std::optional<Align> getTextAlignX() const;
+    std::optional<Align> getTextAlignY() const;
 };
 
 class GuiElementComponent {
+public:
+    struct Text {
+        std::wstring content = std::wstring();
+        TextMesh textMesh = TextMesh();
+        Font *font = nullptr;
+        float fontSize = 12.0f;
+        glm::vec2 computedPosition = glm::vec2();
+        glm::vec2 computedSize = glm::vec2();
+    };
 private:
     Style *groupStyle = nullptr;
+    Text *text = nullptr;
+    bool dirty = true;
 public:
     Style style = Style();
     glm::vec2 computedPosition = glm::vec2(), computedSize = glm::vec2();
@@ -152,4 +155,14 @@ public:
 
     void setGroupStyle(Style &style);
     const Style *getGroupStyle() const;
+
+    void setText(const std::wstring &content);
+    void setFont(Font &font);
+    void setFontSize(float size);
+
+    const Text *getText() const;
+    Text *getMutableText();
+
+    void markClean();
+    bool isDirty() const;
 };
