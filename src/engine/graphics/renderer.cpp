@@ -711,8 +711,7 @@ void Renderer::render(const Window &window, World &world) const {
         glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);
 
-        glm::vec2 viewport = glm::vec2(static_cast<float>(window.getWidth()), static_cast<float>(window.getHeight()));
-        glm::mat4 projectionViewMatrix = glm::ortho(0.0f, viewport.x, 0.0f, viewport.y);
+        glm::mat4 projectionViewMatrix = glm::ortho(0.0f, static_cast<float>(window.getSize().x), 0.0f, static_cast<float>(window.getSize().y));
         for (auto [_, root] : world.getChildren(std::nullopt)) {
             if (!world.hasComponents<GuiElementComponent>(root)) {
                 continue;
@@ -727,11 +726,11 @@ void Renderer::render(const Window &window, World &world) const {
                 element.computedSize.y = 0.0f;
     
                 fitGuiElements(world, root, element);
-                growGuiElements(world, root, element, viewport);
+                growGuiElements(world, root, element, window.getSize());
                 positionGuiElements(world, root, element);
             }
 
-            drawGuiElements(world, root, element, this->spriteVertexArray, this->guiShader, this->textShader, glm::vec2(), viewport, viewport, projectionViewMatrix);
+            drawGuiElements(world, root, element, this->spriteVertexArray, this->guiShader, this->textShader, glm::vec2(), window.getSize(), window.getSize(), projectionViewMatrix);
         }
     } // FIXME: Too slow / [Avg: 0.171936ms | Peak: 1.859586ms]
     // Debug::endTimeMeasure();

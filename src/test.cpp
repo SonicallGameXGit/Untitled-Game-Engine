@@ -6,7 +6,7 @@ struct MyScript : public Script {
     glm::vec3 viewTarget = glm::vec3(0.0f, 0.0f, 10000.0f);
     float nextSwitchTime = 0.0f, switchTimer = 0.0f, sleepTime = 0.0f, sleepTimer = 0.0f;
 
-    bool jumping = false;
+    bool jumping = false, paused = false;
     explicit MyScript(bool jumping) : Script(), jumping(jumping) {}
 
     void switch_() {
@@ -40,7 +40,12 @@ struct MyScript : public Script {
         // printf("Entity %u created!\n", static_cast<uint32_t>(self));
         printf("Hi, my name is %s!\n", world.getName(self).c_str());
     }
-    void onUpdate(const Window&, World &world, Entity self, float deltaTime) override {
+    void onUpdate(const Window &window, World &world, Entity self, float deltaTime) override {
+        if (window.isMouseJustPressed(SDL_BUTTON_LEFT)) {
+            this->paused = !this->paused;
+        }
+        deltaTime *= this->paused ? 0.2f : 1.0f;
+
         Transform3DComponent &transform = world.getMutableComponent<Transform3DComponent>(self);
 
         if (this->jumping) {
@@ -172,7 +177,7 @@ struct FpsCounterScript : public Script {
     void onLoad(World&, Entity) override {
         printf("FpsCounterScript loaded!\n");
     }
-    void onUpdate(const Window& window, World& world, Entity self, float deltaTime) override {
+    void onUpdate(const Window &window, World &world, Entity self, float deltaTime) override {
         this->fpsTimer += deltaTime;
         this->fps++;
         if (this->fpsTimer >= 1.0f) {
@@ -197,39 +202,49 @@ struct FpsCounterScript : public Script {
         printf("FpsCounterScript destroyed!\n");
     }
 };
-struct TextScript : public Script {
-    void onLoad(World&, Entity) override {
-        printf("TextScript loaded!\n");
-    }
-    void onUpdate(const Window&, World& world, Entity self, float) override {
-        const TextComponent &textComponent = world.getComponent<TextComponent>(self);
-        Transform2DComponent &transform = world.getMutableComponent<Transform2DComponent>(self);
-        // transform.position.x = -textComponent.getFont()->getTextWidth(textComponent.getText()) * 0.5f * transform.scale.x;
-        transform.position.y = -0.95f + transform.scale.y;
-    }
-    void onDestroy(World&, Entity) override {
-        printf("TextScript destroyed!\n");
-    }
-};
-class PanelScript : public Script {
-    float time = 0.0f;
-    void onUpdate(const Window&, World& world, Entity self, float deltaTime) override {
-        time += deltaTime;
-
-        size_t i = 0;
-        for (auto [_, child] : world.getChildren(self)) {
-            if (!world.hasComponents<GuiElementComponent>(child)) {
-                continue;
+struct QCounterScript : public Script {
+    uint64_t count = 0;
+    void onLoad(World&, Entity) override {}
+    void onUpdate(const Window &window, World &world, Entity self, float) override {
+        GuiElementComponent &text = world.getMutableComponent<GuiElementComponent>(self);
+        if (window.isKeyJustPressed(SDLK_Q)) {
+            if (window.isKeyPressed(SDLK_LSHIFT) || window.isKeyPressed(SDLK_RSHIFT)) {
+                this->count--;
+            } else {
+                this->count++;
             }
-            if (!world.getName(child).starts_with("Child")) {
-                continue;
-            }
-            GuiElementComponent &childElement = world.getMutableComponent<GuiElementComponent>(child);
-            float height = childElement.style.getHeight().value_or(50.0f).getConstraint().value_or(50.0f);
-            childElement.style.setHeight(height + ((SDL_sinf(time * 2.0f + i) * 0.5f + 0.5f) * 250.0f - height) * 20.0f * deltaTime);
-            i++;
+            text.setText(L"Q Count: " + std::to_wstring(this->count));
         }
     }
+    void onDestroy(World&, Entity) override {}
+};
+struct MousePositionScript : public Script {
+    uint64_t count = 0;
+    void onLoad(World&, Entity) override {}
+    void onUpdate(const Window &window, World &world, Entity self, float deltaTime) override {
+        GuiElementComponent &text = world.getMutableComponent<GuiElementComponent>(self);
+        const glm::vec2 &mousePos = window.getMousePosition();
+        std::wstring buttonPressed = std::wstring();
+        if (window.isMousePressed(SDL_BUTTON_LEFT)) {
+            buttonPressed = L" (Left)";
+        } else if (window.isMousePressed(SDL_BUTTON_RIGHT)) {
+            buttonPressed = L" (Right)";
+        } else if (window.isMousePressed(SDL_BUTTON_MIDDLE)) {
+            buttonPressed = L" (Middle)";
+        }
+        text.setText(L"Mouse Position" + buttonPressed + L": (" + std::to_wstring(static_cast<int32_t>(mousePos.x)) + L", " + std::to_wstring(static_cast<int32_t>(mousePos.y)) + L")");
+
+        if (window.isKeyPressed(SDLK_W)) {
+            world.camera.orthoSize *= (1.0f - deltaTime);
+        }
+        if (window.isKeyPressed(SDLK_S)) {
+            world.camera.orthoSize *= (1.0f + deltaTime);
+        }
+        if (window.getScrollDeltaY() != 0.0f) {
+            world.camera.orthoSize *= (1.0f - window.getScrollDeltaY() * 0.05f);
+        }
+    }
+    void onDestroy(World&, Entity) override {}
 };
 
 static void spawnSidebarTree(World &world, std::optional<Entity> parent, std::optional<Entity> sidebar, Font &font, Texture &objectTexture, Texture &downArrowIcon, float depth) {
@@ -547,15 +562,29 @@ int main() {
         }
     }
 
-    std::optional<Entity> fpsContainer = world.spawn("FPS Text Container", std::nullopt);
-    if (fpsContainer.has_value()) {
-        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(fpsContainer.value());
+    std::optional<Entity> topRightContainer = world.spawn("TopRightContainer", std::nullopt);
+    if (topRightContainer.has_value()) {
+        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(topRightContainer.value());
         gui.style.setWidth(Sizing::Grow);
         gui.style.setHeight(Sizing::Grow);
         gui.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
+        gui.style.setGap(8.0f);
         gui.style.setContentAlignX(Align::End);
 
-        std::optional<Entity> fps = world.spawn("FPS Text", fpsContainer);
+        std::optional<Entity> qCounter = world.spawn("QCounter", topRightContainer);
+        if (qCounter.has_value()) {
+            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(qCounter.value());
+            gui2.style.setWidth(Sizing::Fit);
+            gui2.style.setHeight(Sizing::Fit);
+            gui2.style.setPadding(Edges { .left = 8.0f, .bottom = 4.0f, .right = 8.0f, .top = 4.0f });
+            gui2.style.setBackgroundColor(0x00000080);
+            gui2.style.setTextColor(0xFF44FFFF);
+            gui2.setFont(notoSansFont);
+            gui2.setFontSize(24.0f);
+            gui2.setText(L"Q: 0");
+            world.setScript<QCounterScript>(qCounter.value());
+        }
+        std::optional<Entity> fps = world.spawn("FPS Text", topRightContainer);
         if (fps.has_value()) {
             GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(fps.value());
             gui2.style.setWidth(Sizing::Fit);
@@ -565,7 +594,44 @@ int main() {
             gui2.style.setTextColor(0xFFFFFFFF);
             gui2.setFont(notoSansFont);
             gui2.setFontSize(24.0f);
+            gui2.setText(L"FPS: 0");
             world.setScript<FpsCounterScript>(fps.value());
+        }
+    }
+    std::optional<Entity> bottomRightContainer = world.spawn("Bottom Right Container", std::nullopt);
+    if (bottomRightContainer.has_value()) {
+        GuiElementComponent &gui = world.addComponent<GuiElementComponent>(bottomRightContainer.value());
+        gui.style.setWidth(Sizing::Grow);
+        gui.style.setHeight(Sizing::Grow);
+        gui.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
+        gui.style.setGap(8.0f);
+        gui.style.setContentAlignX(Align::End);
+        gui.style.setContentAlignY(Align::End);
+
+        std::optional<Entity> mousePosition = world.spawn("MousePosition", bottomRightContainer);
+        if (mousePosition.has_value()) {
+            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(mousePosition.value());
+            gui2.style.setWidth(Sizing::Fit);
+            gui2.style.setHeight(Sizing::Fit);
+            gui2.style.setPadding(Edges { .left = 8.0f, .bottom = 4.0f, .right = 8.0f, .top = 4.0f });
+            gui2.style.setBackgroundColor(0x00000080);
+            gui2.style.setTextColor(0xFF44FFFF);
+            gui2.setFont(notoSansFont);
+            gui2.setFontSize(24.0f);
+            world.setScript<MousePositionScript>(mousePosition.value());
+        }
+
+        std::optional<Entity> instructions = world.spawn("Instructions", bottomRightContainer);
+        if (instructions.has_value()) {
+            GuiElementComponent &gui2 = world.addComponent<GuiElementComponent>(instructions.value());
+            gui2.style.setWidth(Sizing::Fit);
+            gui2.style.setHeight(Sizing::Fit);
+            gui2.style.setPadding(Edges { .left = 8.0f, .bottom = 4.0f, .right = 8.0f, .top = 4.0f });
+            gui2.style.setBackgroundColor(0x00000080);
+            gui2.style.setTextColor(0xFFFFFFFF);
+            gui2.setFont(notoSansFont);
+            gui2.setFontSize(18.0f);
+            gui2.setText(L"W/S or Mouse Y Wheel: Zoom In/Out\nQ/(Shift + Q): Change \"Q\" Counter Value\nLeft Click: Pause/Unpause Seryohas");
         }
     }
 
@@ -581,15 +647,10 @@ int main() {
         uint64_t currentTime = SDL_GetTicksNS();
         uint64_t deltaTime = currentTime - lastTime;
         lastTime = currentTime;
-
         float dt = static_cast<float>(static_cast<double>(deltaTime) / 1.0e9);
-
-        zoomTime += dt;
-        world.camera.orthoSize += (5.0f + glm::clamp(SDL_sinf(zoomTime * 0.1f) * 2.0f, 0.0f, 1.0f) * 27.0f - world.camera.orthoSize) * dt;
 
         window.pollEvents();
         world.update(window, dt);
-
         renderer.render(window, world);
         window.swapBuffers();
     }
