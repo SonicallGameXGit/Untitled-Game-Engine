@@ -63,6 +63,7 @@ add_executable(${PROJECT_NAME}
     src/engine/world/mesh.cpp
     src/engine/world/world.cpp
     
+    src/engine/graphics/gui/controller.cpp
     src/engine/graphics/gui/text.cpp
     src/engine/graphics/renderer.cpp
     

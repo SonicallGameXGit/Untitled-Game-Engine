@@ -104,6 +104,7 @@ void Style::setContentAlignX(Align align) { this->properties[Property::ContentAl
 void Style::setContentAlignY(Align align) { this->properties[Property::ContentAlignY] = align; };
 void Style::setTextAlignX(Align align) { this->properties[Property::TextAlignX] = align; }
 void Style::setTextAlignY(Align align) { this->properties[Property::TextAlignY] = align; }
+void Style::setHoverable(bool hoverable) { this->properties[Property::Hoverable] = hoverable; }
 
 std::optional<float> Style::getX() const { GET_PROPERTY(X, float); }
 std::optional<float> Style::getY() const { GET_PROPERTY(Y, float); }
@@ -122,6 +123,7 @@ std::optional<Align> Style::getContentAlignX() const { GET_PROPERTY(ContentAlign
 std::optional<Align> Style::getContentAlignY() const { GET_PROPERTY(ContentAlignY, Align); }
 std::optional<Align> Style::getTextAlignX() const { GET_PROPERTY(TextAlignX, Align); }
 std::optional<Align> Style::getTextAlignY() const { GET_PROPERTY(TextAlignY, Align); }
+std::optional<bool> Style::getHoverable() const { GET_PROPERTY(Hoverable, bool); }
 
 void GuiElementComponent::setText(const std::wstring &content) {
     if (this->text == nullptr) {
@@ -162,9 +164,9 @@ GuiElementComponent::Text *GuiElementComponent::getMutableText() {
     return this->text;
 }
 
-void GuiElementComponent::markClean() {
-    this->dirty = false;
+bool GuiElementComponent::isClicked() const {
+    return this->clicked;
 }
-bool GuiElementComponent::isDirty() const {
-    return this->dirty;
+bool GuiElementComponent::isHovered() const {
+    return this->hovered;
 }

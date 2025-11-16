@@ -2,6 +2,7 @@
 #include <framework/graphics/shader.hpp>
 #include <framework/graphics/buffers.hpp>
 #include <framework/graphics/window.hpp>
+#include <engine/graphics/gui/controller.hpp>
 #include <engine/world/world.hpp>
 #include <engine/util/defines.hpp>
 
@@ -31,6 +32,8 @@ private:
         0.0f, 1.0f
     }), VertexBufferUsage::Static);
     VertexArray spriteVertexArray = VertexArray();
+
+    GuiController guiController = GuiController();
 public:
     Renderer();
     ~Renderer();

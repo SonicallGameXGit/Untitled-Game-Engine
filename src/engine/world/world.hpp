@@ -41,6 +41,7 @@ private:
         Entity parent = entt::null;
         std::string name = std::string();
         std::unordered_map<std::string, Entity> children = std::unordered_map<std::string, Entity>();
+        bool enabled = true;
 
         explicit NodeComponent(const std::string &name);
         NodeComponent(const std::string &name, Entity parent);
@@ -105,6 +106,10 @@ public:
     }
     void removeScript(Entity entity);
     Script *getScript(Entity entity) const;
+
+    void enable(Entity entity);
+    void disable(Entity entity);
+    bool isEnabled(Entity entity) const;
 
     void update(const Window &window, float deltaTime);
 };

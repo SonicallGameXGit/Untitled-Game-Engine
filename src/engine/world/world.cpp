@@ -33,7 +33,7 @@ World::~World() {
 std::optional<Entity> World::spawn(const std::string &name, std::optional<Entity> parent) {
     if (!parent.has_value()) {
         if (this->hierarchy.find(name) != this->hierarchy.end()) {
-            // TODO: Instead of just giving std::nullopt, generate unique name like "{name} (1)", etc.
+            // TODO: Instead of just giving std::nullopt, generate unique name like "{name} (1)", etc. | Net, dolboeb, otkuda polzovatel' budet znat', chto za imya yego budet?
             return std::nullopt; // Dalbayob obnaruzhen
         }
 
@@ -133,8 +133,20 @@ void World::removeScript(Entity entity) {
     delete component.script;
     component.script = nullptr;
 }
-Script *World::getScript(Entity entity) const {
+Script *World::getScript(Entity entity) const { // FIXME: There's could be a chance user put a random Entity and it'd break, please check is it safe.
     return this->getComponent<ScriptComponent>(entity).script;
+}
+
+void World::enable(Entity entity) {
+    NodeComponent &nodeComponent = this->getMutableComponent<NodeComponent>(entity);
+    nodeComponent.enabled = true;
+}
+void World::disable(Entity entity) {
+    NodeComponent &nodeComponent = this->getMutableComponent<NodeComponent>(entity);
+    nodeComponent.enabled = false;
+}
+bool World::isEnabled(Entity entity) const {
+    return this->getComponent<NodeComponent>(entity).enabled;
 }
 
 void World::update(const Window &window, float deltaTime) {
@@ -142,6 +154,7 @@ void World::update(const Window &window, float deltaTime) {
 
     auto view = this->getAllEntitiesWith<ScriptComponent>();
     for (auto entity : view) {
+        if (!this->isEnabled(entity)) continue; // FIXME: It disables script update correctly for this entity, but what about children entities?
         ScriptComponent &component = this->getMutableComponent<ScriptComponent>(entity);
         if (component.script == nullptr) continue;
         component.script->onUpdate(window, *this, entity, deltaTime);

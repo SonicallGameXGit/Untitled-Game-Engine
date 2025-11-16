@@ -2,7 +2,7 @@
 #include <glm/glm.hpp>
 #include <framework/graphics/texture.hpp>
 
-struct Transform3DComponent {
+struct Transform3DComponent { // TODO: Give user ability to get localPosition and position, localRotation and rotation and localScale and scale
     glm::mat4 worldModelMatrix = glm::mat4(1.0f);
     glm::vec3 position = glm::vec3();
     glm::vec3 rotation = glm::vec3();

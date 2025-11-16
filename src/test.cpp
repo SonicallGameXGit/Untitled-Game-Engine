@@ -219,7 +219,9 @@ struct QCounterScript : public Script {
     void onDestroy(World&, Entity) override {}
 };
 struct MousePositionScript : public Script {
+    std::optional<Entity> fpvSeryoha = std::nullopt;
     uint64_t count = 0;
+
     void onLoad(World&, Entity) override {}
     void onUpdate(const Window &window, World &world, Entity self, float deltaTime) override {
         GuiElementComponent &text = world.getMutableComponent<GuiElementComponent>(self);
@@ -243,11 +245,79 @@ struct MousePositionScript : public Script {
         if (window.getScrollDeltaY() != 0.0f) {
             world.camera.orthoSize *= (1.0f - window.getScrollDeltaY() * 0.05f);
         }
+
+        if (this->fpvSeryoha.has_value()) {
+            Transform3DComponent &transform = world.getMutableComponent<Transform3DComponent>(this->fpvSeryoha.value());
+            std::optional<Entity> head = world.find("Head", this->fpvSeryoha.value());
+            if (head.has_value()) {
+                Transform3DComponent &headTransform = world.getMutableComponent<Transform3DComponent>(head.value());
+                
+                world.camera.position = transform.position + headTransform.position;
+                world.camera.rotation = transform.rotation + headTransform.rotation;
+                world.camera.rotation.x *= -1.0f;
+                world.camera.rotation.y += 180.0f;
+            }
+        }
+
+        if (window.isKeyJustPressed(SDLK_O)) {
+            std::optional<Entity> seryohas = world.find("Seryohas", std::nullopt);
+            if (seryohas.has_value()) {
+                std::optional<Entity> seryoha = world.find(std::string("Seryoha ") + std::to_string(rand() % world.getChildren(seryohas).size()), seryohas);
+                this->fpvSeryoha = seryoha;
+                world.camera.mode = CameraMode::PERSPECTIVE;
+            }
+        }
+        if (window.isKeyJustPressed(SDLK_P)) {
+            this->fpvSeryoha = std::nullopt;
+            world.camera.mode = CameraMode::ORTHOGRAPHIC;
+            world.camera.position = glm::vec3(32.0f, 10.0f, 32.0f);
+            world.camera.rotation = glm::vec3(-30.0f, 45.0f, 0.0f);
+        }
+    }
+    void onDestroy(World&, Entity) override {}
+};
+struct HierarchyEntryScript : public Script {
+    Texture *expandIconTexture = nullptr;
+    Texture *closeIconTexture = nullptr;
+
+    HierarchyEntryScript(Texture &expandIconTexture, Texture &closeIconTexture) :
+        Script(),
+        expandIconTexture(&expandIconTexture),
+        closeIconTexture(&closeIconTexture)
+    {}
+    ~HierarchyEntryScript() override {}
+
+    void onLoad(World&, Entity) override {}
+    void onUpdate(const Window &window, World &world, Entity self, float) override {
+        std::optional<Entity> handle = world.find("Handle", self);
+        if (!handle.has_value()) {
+            return;
+        }
+
+        std::optional<Entity> expandIcon = world.find("Expand Icon", handle);
+        if (!expandIcon.has_value()) {
+            return;
+        }
+
+        GuiElementComponent &element = world.getMutableComponent<GuiElementComponent>(expandIcon.value());
+        if (element.isClicked()) {
+            std::optional<Entity> children = world.find("Children", self);
+            if (!children.has_value()) {
+                return;
+            }
+            if (world.isEnabled(children.value())) {
+                world.disable(children.value());
+                element.style.setBackgroundImage(*expandIconTexture);
+            } else {
+                world.enable(children.value());
+                element.style.setBackgroundImage(*closeIconTexture);
+            }
+        }
     }
     void onDestroy(World&, Entity) override {}
 };
 
-static void spawnSidebarTree(World &world, std::optional<Entity> parent, std::optional<Entity> sidebar, Font &font, Texture &objectTexture, Texture &downArrowIcon, float depth) {
+static void spawnSidebarTree(World &world, std::optional<Entity> parent, std::optional<Entity> container, Font &font, Texture &objectTexture, Texture &expandIconTexture, Texture &closeIconTexture) {
     auto children = world.getChildren(parent);
     auto sortedChildren = std::vector<std::tuple<Entity, EntityIdentifier>>();
     sortedChildren.reserve(std::distance(children.begin(), children.end()));
@@ -260,52 +330,82 @@ static void spawnSidebarTree(World &world, std::optional<Entity> parent, std::op
 
     size_t numItems = 0;
     for (auto [entity, _] : sortedChildren) {
-        if (numItems++ > 32) {
-            break;
+        if (world.hasComponents<GuiElementComponent>(entity)) { // To avoid infinite recursion or something
+            continue;
         }
+        // if (numItems++ > 32) {
+        //     break;
+        // }
 
-        std::optional<Entity> child = world.spawn("Child " + std::to_string(static_cast<uint32_t>(entity)), sidebar);
-        if (child.has_value()) {
-            GuiElementComponent &gui = world.addComponent<GuiElementComponent>(child.value());
-            gui.style.setWidth(Sizing::Grow);
-            gui.style.setHeight(Sizing::Fit);
-            gui.style.setPadding(Edges { .left = 4.0f, .bottom = 2.0f, .right = 4.0f, .top = 2.0f });
-            gui.style.setMargin(Edges { .left = depth * 24.0f, .bottom = 0.0f, .right = 0.0f, .top = 0.0f });
-            gui.style.setContentAlignY(Align::Center);
-            gui.style.setGap(4.0f);
+        std::optional<Entity> child = world.spawn("Child " + std::to_string(static_cast<uint32_t>(entity)), container);
+        if (!child.has_value()) {
+            continue;
+        }
+        bool hasChildren = !world.getChildren(entity).empty();
+        GuiElementComponent &childGui = world.addComponent<GuiElementComponent>(child.value());
+        childGui.style.setWidth(Sizing::Grow);
+        childGui.style.setHeight(Sizing::Fit);
+        childGui.style.setLayoutDirection(LayoutDirection::Column);
+        childGui.style.setHoverable(false);
+        childGui.style.setPadding(Edges { .left = parent.has_value() ? (hasChildren ? 24.0f : 48.0f) : 0.0f, .bottom = 0.0f, .right = 0.0f, .top = 0.0f });
+        world.setScript<HierarchyEntryScript>(child.value(), expandIconTexture, closeIconTexture);
 
-            std::optional<Entity> iconEntity = world.spawn("Icon", child);
-            if (iconEntity.has_value()) {
-                GuiElementComponent &iconGui = world.addComponent<GuiElementComponent>(iconEntity.value());
-                iconGui.style.setWidth(24.0f);
-                iconGui.style.setHeight(24.0f);
-                iconGui.style.setBackgroundImage(objectTexture);
-            }
-            std::optional<Entity> titleEntity = world.spawn("Title", child);
-            if (titleEntity.has_value()) {
-                GuiElementComponent &titleGui = world.addComponent<GuiElementComponent>(titleEntity.value());
-                titleGui.style.setWidth(Sizing::Grow);
-                titleGui.style.setHeight(Sizing::Fit);
+        std::optional<Entity> handle = world.spawn("Handle", child);
+        if (!handle.has_value()) {
+            continue;
+        }
+        GuiElementComponent &handleGui = world.addComponent<GuiElementComponent>(handle.value());
+        handleGui.style.setWidth(Sizing::Grow);
+        handleGui.style.setHeight(Sizing::Fit);
+        handleGui.style.setGap(4.0f);
+        handleGui.style.setPadding(Edges { .left = 4.0f, .bottom = 2.0f, .right = 4.0f, .top = 2.0f });
+        handleGui.style.setContentAlignY(Align::Center);
 
-                titleGui.setFont(font);
-                titleGui.setFontSize(24.0f);
-
-                const std::string &name = world.getName(entity);
-                titleGui.setText(std::wstring(name.begin(), name.end()));
-                titleGui.style.setTextColor(0xFFFFFFFF);
-            }
-            if (!world.getChildren(entity).empty()) {
-                std::optional<Entity> expandIconEntity = world.spawn("Expand Icon", child);
-                if (expandIconEntity.has_value()) {
-                    GuiElementComponent &expandIconGui = world.addComponent<GuiElementComponent>(expandIconEntity.value());
-                    expandIconGui.style.setWidth(24.0f);
-                    expandIconGui.style.setHeight(24.0f);
-                    expandIconGui.style.setBackgroundImage(downArrowIcon);
-                }
+        std::optional<Entity> expandIcon = world.spawn(hasChildren ? "Expand Icon" : "Spacing", handle);
+        if (expandIcon.has_value()) {
+            GuiElementComponent &expandIconGui = world.addComponent<GuiElementComponent>(expandIcon.value());
+            expandIconGui.style.setWidth(24.0f);
+            expandIconGui.style.setHeight(24.0f);
+            if (hasChildren) {
+                expandIconGui.style.setBackgroundImage(expandIconTexture);
             }
         }
 
-        spawnSidebarTree(world, entity, sidebar, font, objectTexture, downArrowIcon, depth + 1.0f);
+        std::optional<Entity> icon = world.spawn("Icon", handle);
+        if (!icon.has_value()) {
+            continue;
+        }
+        GuiElementComponent &iconGui = world.addComponent<GuiElementComponent>(icon.value());
+        iconGui.style.setWidth(24.0f);
+        iconGui.style.setHeight(24.0f);
+        iconGui.style.setBackgroundImage(objectTexture);
+        iconGui.style.setHoverable(false);
+
+        std::optional<Entity> title = world.spawn("Title", handle);
+        if (!title.has_value()) {
+            continue;
+        }
+        GuiElementComponent &titleGui = world.addComponent<GuiElementComponent>(title.value());
+        titleGui.style.setWidth(Sizing::Fit);
+        titleGui.style.setHeight(Sizing::Fit);
+        titleGui.style.setPadding(Edges { .left = 4.0f, .bottom = 2.0f, .right = 4.0f, .top = 2.0f });
+        titleGui.style.setContentAlignY(Align::Center);
+        titleGui.style.setTextColor(0xFFFFFFFF);
+        titleGui.setFont(font);
+        titleGui.setFontSize(24.0f);
+        const std::string &name = world.getName(entity);
+        titleGui.setText(std::wstring(name.begin(), name.end()));
+
+        std::optional<Entity> childrenContainer = world.spawn("Children", child);
+        if (!childrenContainer.has_value()) {
+            continue;
+        }
+        world.disable(childrenContainer.value());
+        GuiElementComponent &childrenContainerGui = world.addComponent<GuiElementComponent>(childrenContainer.value());
+        childrenContainerGui.style.setWidth(Sizing::Grow);
+        childrenContainerGui.style.setHeight(Sizing::Fit);
+        childrenContainerGui.style.setLayoutDirection(LayoutDirection::Column);
+        spawnSidebarTree(world, entity, childrenContainer, font, objectTexture, expandIconTexture, closeIconTexture);
     }
 }
 
@@ -466,7 +566,12 @@ int main() {
         .format = TextureFormat::RGBA,
         .type = TextureType::UnsignedByte,
     });
-    Texture downArrowIcon = Texture::fromFile(ASSETS_DIR "/img/down_arrow.png", {
+    Texture expandIconTexture = Texture::fromFile(ASSETS_DIR "/img/expand_icon.png", {
+        .internalFormat = TextureInternalFormat::RGBA8,
+        .format = TextureFormat::RGBA,
+        .type = TextureType::UnsignedByte,
+    });
+    Texture closeIconTexture = Texture::fromFile(ASSETS_DIR "/img/close_icon.png", {
         .internalFormat = TextureInternalFormat::RGBA8,
         .format = TextureFormat::RGBA,
         .type = TextureType::UnsignedByte,
@@ -543,12 +648,14 @@ int main() {
         GuiElementComponent &gui = world.addComponent<GuiElementComponent>(panel.value());
         gui.style.setWidth(Sizing::Grow);
         gui.style.setHeight(Sizing::Grow);
+        gui.style.setHoverable(false);
     }
 
     std::optional<Entity> horizontalLayout = world.spawn("Horizontal Layout", panel);
     if (horizontalLayout.has_value()) {
         GuiElementComponent &gui = world.addComponent<GuiElementComponent>(horizontalLayout.value());
         gui.style.setHeight(Sizing::Grow);
+        gui.style.setHoverable(false);
 
         std::optional<Entity> sidebar = world.spawn("Sidebar", horizontalLayout);
         if (sidebar.has_value()) {
@@ -558,7 +665,7 @@ int main() {
             gui.style.setBackgroundColor(0x333333FF);
             gui.style.setPadding(Edges { 4.0f, 4.0f, 4.0f, 4.0f });
             gui.style.setLayoutDirection(LayoutDirection::Column);
-            gui.style.setGap(4.0f);
+            gui.style.setHoverable(false);
         }
     }
 
@@ -570,6 +677,7 @@ int main() {
         gui.style.setPadding(Edges { 8.0f, 8.0f, 8.0f, 8.0f });
         gui.style.setGap(8.0f);
         gui.style.setContentAlignX(Align::End);
+        gui.style.setHoverable(false);
 
         std::optional<Entity> qCounter = world.spawn("QCounter", topRightContainer);
         if (qCounter.has_value()) {
@@ -607,6 +715,7 @@ int main() {
         gui.style.setGap(8.0f);
         gui.style.setContentAlignX(Align::End);
         gui.style.setContentAlignY(Align::End);
+        gui.style.setHoverable(false);
 
         std::optional<Entity> mousePosition = world.spawn("MousePosition", bottomRightContainer);
         if (mousePosition.has_value()) {
@@ -638,7 +747,7 @@ int main() {
     std::optional<Entity> sidebar = world.find("Sidebar", horizontalLayout);
     if (sidebar.has_value()) {
         size_t numItems = 0;
-        spawnSidebarTree(world, std::nullopt, sidebar, notoSansFont, objectTexture, downArrowIcon, 0.0f);
+        spawnSidebarTree(world, std::nullopt, sidebar, notoSansFont, objectTexture, expandIconTexture, closeIconTexture);
     }
 
     float zoomTime = 0.0f;

@@ -86,8 +86,9 @@ private:
         Layout, LayoutDirection,
         ContentAlignX, ContentAlignY,
         TextAlignX, TextAlignY,
+        Hoverable
     };
-    std::unordered_map<Property, std::variant<float, Color, Texture*, Edges, Size, Position, Layout, LayoutDirection, Align>> properties;
+    std::unordered_map<Property, std::variant<float, Color, Texture*, Edges, Size, Position, Layout, LayoutDirection, Align, bool>> properties;
 public:
     Style();
     ~Style();
@@ -110,8 +111,8 @@ public:
     void setContentAlignY(Align align);
     void setTextAlignX(Align align);
     void setTextAlignY(Align align);
+    void setHoverable(bool hoverable);
 
-    // TODO: Look if std::optional is even needed here
     std::optional<float> getX() const;
     std::optional<float> getY() const;
     std::optional<Size> getWidth() const;
@@ -129,10 +130,12 @@ public:
     std::optional<Align> getContentAlignY() const;
     std::optional<Align> getTextAlignX() const;
     std::optional<Align> getTextAlignY() const;
+    std::optional<bool> getHoverable() const;
 };
 
 class GuiElementComponent {
 public:
+    friend struct GuiController;
     struct Text {
         std::wstring content = std::wstring();
         TextMesh textMesh = TextMesh();
@@ -142,12 +145,14 @@ public:
         glm::vec2 computedSize = glm::vec2();
     };
 private:
+    glm::vec2 computedPosition = glm::vec2(), computedSize = glm::vec2();
     Style *groupStyle = nullptr;
     Text *text = nullptr;
-    bool dirty = true;
+
+    bool dirty = true, wasEnabled = true;
+    bool hovered = false, clickPlanned = false, clicked = false;
 public:
     Style style = Style();
-    glm::vec2 computedPosition = glm::vec2(), computedSize = glm::vec2();
 
     GuiElementComponent();
     explicit GuiElementComponent(Style &style);
@@ -160,9 +165,10 @@ public:
     void setFont(Font &font);
     void setFontSize(float size);
 
+    // TODO: Don't give access to Text struct itself.
     const Text *getText() const;
     Text *getMutableText();
 
-    void markClean();
-    bool isDirty() const;
+    bool isClicked() const;
+    bool isHovered() const;
 };
